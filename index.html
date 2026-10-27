@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Frame</title>
+<meta name="theme-color" content="#E7E9E3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121514" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Daily Frame">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root {
+  --bg: #E7E9E3; --ink: #1A1F1D; --muted: #5B655F; --line: #C8CDC4;
+  --amber: #E2892D; --on-amber: #1A1308;
+  --frame: #1A1F1D; --frame-ink: #EEF0EA;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #121514; --ink: #E6E9E3; --muted: #9AA39C; --line: #2D3431; --amber: #EE9A45; --frame: #242A28; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font);
+  line-height: 1.45; -webkit-text-size-adjust: 100%;
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  display: flex; justify-content: center;
+}
+.app { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 20px; }
+.top { display: flex; justify-content: space-between; align-items: baseline; }
+.name { font-weight: 700; letter-spacing: -0.01em; }
+.date { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+.frame { background: var(--frame); color: var(--frame-ink); border-radius: 6px; overflow: hidden; }
+.holes { height: 24px; position: relative; }
+.holes::after {
+  content: ""; position: absolute; inset: 8px 0; background: var(--bg);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='8'%3E%3Crect x='6' width='14' height='8' rx='2'/%3E%3C/svg%3E") repeat-x 0 0 / 26px 8px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='8'%3E%3Crect x='6' width='14' height='8' rx='2'/%3E%3C/svg%3E") repeat-x 0 0 / 26px 8px;
+}
+.edge { display: flex; justify-content: space-between; padding: 2px 18px; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--amber); }
+.body { padding: 28px 18px 32px; min-height: 230px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.body h1 { margin: 0; font-size: clamp(2rem, 9vw, 2.7rem); line-height: 1.04; letter-spacing: -0.025em; text-wrap: balance; }
+.body p { margin: 0; font-size: 1.1rem; max-width: 34ch; text-wrap: pretty; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+button {
+  font: inherit; font-weight: 600; color: inherit; cursor: pointer; min-height: 48px;
+  border: 1.5px solid var(--ink); background: transparent; border-radius: 999px; padding: 12px 20px;
+}
+button.primary { background: var(--amber); border-color: var(--amber); color: var(--on-amber); }
+button.primary.done { background: transparent; border-color: var(--amber); color: var(--ink); }
+button:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.stats { margin: 0; color: var(--muted); font-size: 0.95rem; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div class="name">Daily Frame</div><div class="date" id="date"></div></div>
+
+  <div class="frame">
+    <div class="holes" aria-hidden="true"></div>
+    <div class="edge" aria-hidden="true"><span id="edgeL"></span><span id="edgeR"></span></div>
+    <div class="body" aria-live="polite">
+      <h1 id="title"></h1>
+      <p id="line"></p>
+    </div>
+    <div class="edge" aria-hidden="true"><span id="edgeState"></span><span>One frame is enough</span></div>
+    <div class="holes" aria-hidden="true"></div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="shot" type="button">I shot it</button>
+    <button id="other" type="button">Different one</button>
+  </div>
+  <p class="stats" id="stats"></p>
+</div>
+
+<script>
+/* Eight parts of the life being documented, rotating one per day. On weekends
+   the "Work" day becomes Around here, Nature, or Friends. Within a part,
+   prompts cycle in order so nothing repeats until the whole list has been used. */
+var BANK = {
+  "Home": [
+    ["The coffee situation", "Wherever your mug is sitting right now, in whatever state."],
+    ["Shoes by the door", "The pair you actually wear, where you actually leave them."],
+    ["Fridge, open", "Step back, open it, take the frame. It's a time capsule."],
+    ["Desk, as is", "Don't tidy. Shoot the spot where you study or work the way it really looks."],
+    ["The couch, lived in", "Blanket, dent, whatever's piled on it. The real version."],
+    ["Out the window", "Whatever you see from the window you look out of most."],
+    ["On the counter", "Mail, keys, fruit. Whatever has landed there this week."],
+    ["Unmade bed", "Morning state of the room. Pure documentation."],
+    ["Four o'clock light", "Find where it lands in your place and catch it before it moves."],
+    ["The thing you keep meaning to deal with", "The pile, the box, the chair of laundry. Shoot it, then decide."],
+    ["Dinner, mid-cook", "Pans on, steam up, ingredients everywhere."],
+    ["One lamp on", "Your place after dark with a single light. Wait until it feels right."],
+    ["The shelf you never look at", "One shelf you pass all the time and have never really seen."],
+    ["Dishes in progress", "The sink as it is, not as you wish it were."],
+    ["Something thrifted", "A find you wear or keep around, in the spot it lives now."],
+    ["Sewing, in progress", "Fabric, pins, the Singer, a half-altered something. Mid-project counts."],
+    ["What's on the speakers", "The record, the playlist, the screen. What your home sounds like today."]
+  ],
+  "Cats": [
+    ["The cats, wherever they are", "Don't move them, don't wake them. Just shoot where they've ended up."],
+    ["Sleeping position of the day", "Whichever cat has committed hardest to the pose."],
+    ["The food bowl situation", "Full, empty, or being stared at."],
+    ["Cat at the window", "Whatever has their attention out there."],
+    ["Their favorite spot", "Occupied or empty. Both tell the story."],
+    ["Evidence of cats", "Fur on the couch, a toy under the chair, a scratched corner."],
+    ["Closer", "Paws, whiskers, a nose. Get nearer than feels reasonable."],
+    ["Who's watching you", "Find the cat that's been looking at you this whole time."],
+    ["Cat and human", "You or James and a cat in the same frame, however it's happening."],
+    ["Zoomies aftermath", "The room after a cat has used it as a racetrack."]
+  ],
+  "James": [
+    ["James, doing nothing in particular", "No posing. Cooking, scrolling, staring at the ceiling all count."],
+    ["His stuff in your space", "Shoes, a jacket, a mug. The things that say someone else lives here too."],
+    ["Two mugs", "Or two plates, two toothbrushes. The evidence of a pair."],
+    ["Bad selfie of the two of you", "Arm's length, awkward angle, welcome."],
+    ["His hands", "Doing something: cooking, typing, holding the controller."],
+    ["Dinner together", "The table or the couch, whichever is true tonight."],
+    ["His spot", "The place he always sits or stands. Empty is fine."],
+    ["What he's wearing", "Just today's outfit, nothing arranged."],
+    ["Something you did together", "An errand, a walk, a show. One frame that says it happened."],
+    ["Left out", "Whatever one of you has left out this week, in the exact spot it was left."]
+  ],
+  "Work": [
+    ["Work bag by the door", "Packed or half-packed. The setup before you head out."],
+    ["The way in", "One small detail from your commute: the lot, the lanyard, the coffee in the cupholder."],
+    ["Library details, no patrons", "A cart, a shelf end, a sign, the corner of a desk. People stay out of frame."],
+    ["Lunch, wherever it happens", "The break room, the car, standing at a counter."],
+    ["What you wore to work", "Shoot it at your feet or in the mirror, before you change."],
+    ["After-work spot", "Where you land once you're home: the couch, the floor, the kitchen."],
+    ["What you're reading for class", "The pile, the screen, the highlighter, the cold coffee."],
+    ["Today's to-do", "A note, a list, a calendar. However you keep track of the day."]
+  ],
+  "Friends": [
+    ["A friend, as they are", "Whoever you see today, mid-conversation. No poses needed."],
+    ["What the group looks like", "The table, the couch, the car. Wherever you all ended up."],
+    ["Hands around something", "Drinks, snacks, a controller, a deck of cards. The shared object."],
+    ["Who's on the phone", "A call or a text thread with someone far away. Take the screen, or you holding it."],
+    ["A friend's place", "Their shelf, their kitchen, their cat. Somewhere that isn't yours."],
+    ["Before you go out", "Getting ready, picking the outfit, waiting on someone."],
+    ["After", "The parking lot, the walk back, the quiet part after hanging out."],
+    ["A text you're glad you got", "Screenshot it, or just shoot the phone on the table."],
+    ["Someone's laugh", "Catch it if you can. A blur is fine."],
+    ["The plan you made", "A flyer, a calendar, a ticket, anything that says you're seeing people."]
+  ],
+  "Shows & screens": [
+    ["Wristband, ticket, stamp", "Anything that proves you were there. Shoot it on your wrist, your phone, your jacket."],
+    ["The line outside", "Waiting to get in. Whoever's in front of you, whatever the weather is."],
+    ["The room before the lights drop", "A venue empty or filling up. Stage, floor, the bar."],
+    ["Flyers and posters", "A wall of shows on a wall. Telephone poles count."],
+    ["Lights, from the crowd", "Whatever the show is doing to the room."],
+    ["The theater marquee", "Or a ticket, a lobby, a program. Any movie night that happened."],
+    ["Headphones", "Where they are and what's plugged into them."],
+    ["Setup", "Your DJ gear, your laptop, cables everywhere. Where the music happens."],
+    ["What you're watching", "The screen from a side angle, with your living room around it."],
+    ["Post-show wreckage", "Shoes, jacket, earplugs, glitter. Whatever the night left behind."]
+  ],
+  "Nature": [
+    ["Leaves, close", "One leaf, one branch, the pile on the sidewalk. Look down."],
+    ["The foothills", "From wherever you can see them. Overcast, snowy, glowing, all fine."],
+    ["The open space near you", "Any trail, field, or pond close to home, as it looks today."],
+    ["Water", "A creek, a lake, a puddle. Anything reflective."],
+    ["Birds, bugs, small movers", "Whatever's doing something nearby. It doesn't need to be sharp."],
+    ["A tree you pass", "The one you see all the time and never photograph."],
+    ["Sky", "Look up and take what's there. Colorado does the work."],
+    ["Frost, mud, dust", "What the ground looks like this time of year."],
+    ["Something small you picked up", "A rock, a feather, a seed pod, a pinecone. Shoot it where you set it down."],
+    ["Light through something", "Leaves, a curtain, a window screen. The way it falls."],
+    ["Plants at home", "A houseplant, a vase, a pot on the balcony. Nature inside the walls."],
+    ["Where you ran", "The trail, the sidewalk, the loop. The ground you covered."]
+  ],
+  "Around here": [
+    ["Big Dry Creek Trail", "Any stretch of it. Your usual path, as it looks today."],
+    ["A sign worth keeping", "A strip-mall sign, a hand-lettered window, an old Denver-area neon. The weirder the better."],
+    ["Somewhere old and a little shabby", "A shop, a hotel, a back road, a mining town facade. Lived-in beats pretty."],
+    ["The mountains from your usual spot", "Wherever you normally catch them. Cloudy counts."],
+    ["Your street, at its most ordinary", "Not a pretty angle. How the block actually looks."],
+    ["The grocery store you actually go to", "The lot, the carts, the front door."],
+    ["A place you go regularly", "Your coffee shop, bar, record store, gym. Outside or inside."],
+    ["Sky from the parking lot", "Look up from wherever you've parked."],
+    ["A stop on your routes", "A bus stop, a light rail platform, a gas station, a turn you make daily."],
+    ["Something in Golden or Denver", "One frame from wherever you end up in the area today."],
+    ["Weather at the door", "What it's doing out there and what you put on because of it."],
+    ["A mural, sticker or tag", "Something someone put up that you pass often."],
+    ["Something only locals notice", "A landmark that isn't one: a water tower, a dead tree, a weird building."]
+  ]
+};
+var ORDER = ["Home", "Cats", "Friends", "Work", "Nature", "James", "Shows & screens", "Around here"];
+/* On weekends the Work day becomes one of these, alternating weekly. */
+var WEEKEND_SWAP = ["Around here", "Nature", "Friends"];
+var PICK_KEY = "dailyframe.pick";
+var LOG_KEY = "dailyframe.log";
+
+var MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+var DOWS = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+function pad(n) { return String(n).padStart(2, "0"); }
+function keyOf(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+function dayNumber(d) { return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5); }
+function get(k, fallback) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fallback : v; } catch (e) { return fallback; } }
+function put(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+var today = new Date();
+var tk = keyOf(today);
+var log = get(LOG_KEY, {});
+
+/* The day's category and prompt are worked out from the date alone, so the
+   same day always gives the same prompt, on any device, with no saving. */
+function category(d) {
+  var n = dayNumber(d);
+  var round = Math.floor(n / ORDER.length);
+  var cat = ORDER[((n % ORDER.length) + ORDER.length) % ORDER.length];
+  var weekend = d.getDay() === 0 || d.getDay() === 6;
+  if (cat === "Work" && weekend) {
+    /* Skip any swap that matches the day before or after, so the same part of life never lands twice in a row. */
+    var near = [ORDER[(((n - 1) % ORDER.length) + ORDER.length) % ORDER.length], ORDER[(n + 1) % ORDER.length]];
+    for (var i = 0; i < WEEKEND_SWAP.length; i++) {
+      var c = WEEKEND_SWAP[(((round + i) % WEEKEND_SWAP.length) + WEEKEND_SWAP.length) % WEEKEND_SWAP.length];
+      if (near.indexOf(c) === -1) { cat = c; break; }
+    }
+  }
+  return cat;
+}
+function promptIndex(d, cat) {
+  var n = dayNumber(d);
+  var round = Math.floor(n / ORDER.length);
+  /* A swapped-in weekend category starts from a different spot in its list so it
+     doesn't land on the same prompt as that category's own day. */
+  var shift = ORDER[((n % ORDER.length) + ORDER.length) % ORDER.length] === cat ? 0 : 5;
+  var len = BANK[cat].length;
+  return (((round + shift) % len) + len) % len;
+}
+function todaysPick() {
+  var saved = get(PICK_KEY, null);
+  if (saved && saved.day === tk) return saved;
+  var cat = category(today);
+  return { day: tk, cat: cat, idx: promptIndex(today, cat), rerolled: false };
+}
+var pick = todaysPick();
+
+function render() {
+  var p = BANK[pick.cat][pick.idx];
+  document.getElementById("title").textContent = p[0];
+  document.getElementById("line").textContent = p[1];
+  document.getElementById("date").textContent = DOWS[today.getDay()] + " " + today.getDate() + " " + MONTHS[today.getMonth()];
+  document.getElementById("edgeL").textContent = "▸ " + pick.cat;
+  document.getElementById("edgeR").textContent = DOWS[today.getDay()] + " " + pad(today.getDate()) + " " + MONTHS[today.getMonth()];
+  var done = !!log[tk];
+  document.getElementById("edgeState").textContent = done ? "Exposed" : "Unexposed";
+  var shot = document.getElementById("shot");
+  shot.textContent = done ? "Shot. Undo" : "I shot it";
+  shot.classList.toggle("done", done);
+  document.getElementById("other").disabled = pick.rerolled || done;
+
+  var month = Object.keys(log).filter(function (k) { return k.slice(0, 7) === tk.slice(0, 7); }).length;
+  var run = 0, d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (!log[keyOf(d)]) d.setDate(d.getDate() - 1);
+  while (log[keyOf(d)]) { run++; d.setDate(d.getDate() - 1); }
+  var bits = [month + (month === 1 ? " day" : " days") + " this month"];
+  if (run > 1) bits.push(run + " in a row");
+  document.getElementById("stats").textContent = month ? bits.join(" · ") : "Nothing logged yet this month.";
+}
+
+document.getElementById("shot").addEventListener("click", function () {
+  if (log[tk]) delete log[tk]; else log[tk] = 1;
+  put(LOG_KEY, log);
+  render();
+});
+document.getElementById("other").addEventListener("click", function () {
+  var list = BANK[pick.cat];
+  var next = pick.idx;
+  while (list.length > 1 && next === pick.idx) next = Math.floor(Math.random() * list.length);
+  pick = { day: tk, cat: pick.cat, idx: next, rerolled: true };
+  put(PICK_KEY, pick);
+  render();
+});
+
+/* If the app stays open past midnight, pick up the new day on return. */
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState !== "visible") return;
+  var n = new Date();
+  if (keyOf(n) !== tk) { today = n; tk = keyOf(n); pick = todaysPick(); render(); }
+});
+
+render();
+if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
+</script>
+</body>
+</html>
