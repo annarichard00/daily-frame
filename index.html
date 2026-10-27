@@ -119,7 +119,7 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 </div>
 
 <script>
-/* Eight parts of the life being documented, rotating one per day. On weekends
+/* Nine parts of the life being documented, rotating one per day. On weekends
    the "Work" day becomes Around here, Nature, or Friends. Within a part,
    prompts cycle in order so nothing repeats until the whole list has been used. */
 var BANK = {
@@ -200,6 +200,20 @@ var BANK = {
     ["What you're watching", "The screen from a side angle, with your living room around it."],
     ["Post-show wreckage", "Shoes, jacket, earplugs, glitter. Whatever the night left behind."]
   ],
+  "Me": [
+    ["Mirror, as is", "Whatever you look like right now, in whatever mirror is closest. Fix nothing first."],
+    ["Your hands", "Your own, doing whatever they're doing. Hands age into the whole story."],
+    ["Arm's length, no filter", "Tired, happy, bored, mid-thought. You don't have to smile."],
+    ["Your shadow", "Long on the sidewalk, short at noon, across the kitchen floor."],
+    ["You, in your corner", "Wide enough to show where you are, with you somewhere in it."],
+    ["Today's outfit", "Mirror or timer, head to toe. Documented, not judged."],
+    ["Timer shot", "Prop the camera, set the timer, then walk into your own life."],
+    ["You and a cat", "Whichever one lets you. Fur on the shirt is part of it."],
+    ["From behind", "The back of you at the window, the stove, the trailhead."],
+    ["Reflection by accident", "A window, a car door, a dark screen. You, caught in passing."],
+    ["After the run", "Or the hike, the shift, the long day. Wear the evidence."],
+    ["Morning you", "Before coffee, before the day gets a say. The unmade version."]
+  ],
   "Nature": [
     ["Leaves, close", "One leaf, one branch, the pile on the sidewalk. Look down."],
     ["The foothills", "From wherever you can see them. Overcast, snowy, glowing, all fine."],
@@ -230,7 +244,7 @@ var BANK = {
     ["Something only locals notice", "A landmark that isn't one: a water tower, a dead tree, a weird building."]
   ]
 };
-var ORDER = ["Home", "Cats", "Friends", "Work", "Nature", "James", "Shows & screens", "Around here"];
+var ORDER = ["Home", "Cats", "Friends", "Work", "Me", "Nature", "James", "Shows & screens", "Around here"];
 /* On weekends the Work day becomes one of these, alternating weekly. */
 var WEEKEND_SWAP = ["Around here", "Nature", "Friends"];
 var PICK_KEY = "dailyframe.pick";

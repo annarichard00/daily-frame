@@ -1,6 +1,6 @@
 // Cache the app shell so it opens instantly and works offline.
 // Bump VERSION whenever the app files change.
-var VERSION = "daily-frame-v2";
+var VERSION = "daily-frame-v3";
 var FILES = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", function (e) {
