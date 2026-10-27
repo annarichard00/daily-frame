@@ -25,14 +25,16 @@
   :root { --bg: #121514; --ink: #E6E9E3; --muted: #9AA39C; --line: #2D3431; --amber: #EE9A45; --frame: #242A28; color-scheme: dark; }
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+html { min-height: 100%; }
 body {
+  min-height: 100vh; min-height: 100dvh;
   margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font);
   line-height: 1.45; -webkit-text-size-adjust: 100%;
   padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   display: flex; justify-content: center;
 }
-.app { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 20px; }
+.app { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 20px; align-self: flex-start; }
+.app > * { flex-shrink: 0; }
 .top { display: flex; justify-content: space-between; align-items: baseline; }
 .name { font-weight: 700; letter-spacing: -0.01em; }
 .date { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
@@ -59,6 +61,25 @@ button.primary.done { background: transparent; border-color: var(--amber); color
 button:disabled { opacity: 0.45; cursor: default; }
 button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .stats { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sheet { display: flex; flex-direction: column; gap: 14px; border: 1.5px solid var(--line); border-radius: 10px; padding: 16px; }
+.sheet[hidden] { display: none; }
+.sheet-q { margin: 0; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 40px; padding: 8px 14px; font-weight: 500; font-size: 0.9rem; border: 1.5px solid var(--line); }
+.chip[aria-pressed="true"] { background: var(--amber); border-color: var(--amber); color: var(--on-amber); font-weight: 600; }
+.sheet input[type="text"] {
+  font: inherit; color: var(--ink); background: transparent; width: 100%; min-height: 48px;
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px;
+}
+.sheet input[type="text"]:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+.today { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.today:empty { display: none; }
+.today li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.today li:last-child { border-bottom: 1px solid var(--line); }
+.today .what { min-width: 0; overflow-wrap: anywhere; }
+.today .what small { display: block; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.today button { min-height: 40px; padding: 6px 12px; font-size: 0.85rem; font-weight: 500; border-color: var(--line); color: var(--muted); flex: none; }
 </style>
 </head>
 <body>
@@ -77,9 +98,23 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
   </div>
 
   <div class="actions">
-    <button class="primary" id="shot" type="button">I shot it</button>
+    <button class="primary" id="shot" type="button">I shot the prompt</button>
     <button id="other" type="button">Different one</button>
+    <button id="extra" type="button" aria-expanded="false" aria-controls="sheet">Shot something else</button>
   </div>
+
+  <form class="sheet" id="sheet" hidden>
+    <p class="sheet-q">What was it?</p>
+    <div class="chips" id="chips" role="group" aria-label="Part of life"></div>
+    <label class="sr" for="extraNote">Note (optional)</label>
+    <input id="extraNote" type="text" maxlength="120" placeholder="Optional: who, where, what" autocomplete="off">
+    <div class="actions">
+      <button class="primary" type="submit">Log it</button>
+      <button type="button" id="sheetCancel">Cancel</button>
+    </div>
+  </form>
+
+  <ul class="today" id="todayList"></ul>
   <p class="stats" id="stats"></p>
 </div>
 
@@ -213,6 +248,12 @@ function put(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (
 var today = new Date();
 var tk = keyOf(today);
 var log = get(LOG_KEY, {});
+/* A day's entry: {prompt: true if she shot the prompt, extras: [{cat, note}] for anything else}.
+   Any photo counts, so a day is "shot" if either is present. */
+Object.keys(log).forEach(function (k) { if (typeof log[k] !== "object" || !log[k]) log[k] = { prompt: true, extras: [] }; });
+function hasShot(k) { var e = log[k]; return !!(e && (e.prompt || (e.extras && e.extras.length))); }
+function entry(k) { if (!log[k]) log[k] = { prompt: false, extras: [] }; if (!log[k].extras) log[k].extras = []; return log[k]; }
+function tidy(k) { if (!hasShot(k)) delete log[k]; }
 
 /* The day's category and prompt are worked out from the date alone, so the
    same day always gives the same prompt, on any device, with no saving. */
@@ -248,31 +289,85 @@ function todaysPick() {
 }
 var pick = todaysPick();
 
+var CHIPS = ORDER.concat(["Other"]);
+var chosen = null;
+
+function renderChips() {
+  var box = document.getElementById("chips");
+  box.textContent = "";
+  CHIPS.forEach(function (c) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = c;
+    b.setAttribute("aria-pressed", String(c === chosen));
+    b.addEventListener("click", function () { chosen = c; renderChips(); });
+    box.appendChild(b);
+  });
+}
+function openSheet(open) {
+  document.getElementById("sheet").hidden = !open;
+  document.getElementById("extra").setAttribute("aria-expanded", String(open));
+  if (open) {
+    chosen = chosen || pick.cat;
+    renderChips();
+    document.getElementById("extraNote").focus({ preventScroll: false });
+  }
+}
+
 function render() {
   var p = BANK[pick.cat][pick.idx];
   document.getElementById("title").textContent = p[0];
   document.getElementById("line").textContent = p[1];
   document.getElementById("date").textContent = DOWS[today.getDay()] + " " + today.getDate() + " " + MONTHS[today.getMonth()];
-  document.getElementById("edgeL").textContent = "▸ " + pick.cat;
+  document.getElementById("edgeL").textContent = "\u25B8 " + pick.cat;
   document.getElementById("edgeR").textContent = DOWS[today.getDay()] + " " + pad(today.getDate()) + " " + MONTHS[today.getMonth()];
-  var done = !!log[tk];
-  document.getElementById("edgeState").textContent = done ? "Exposed" : "Unexposed";
+  var e = log[tk] || { prompt: false, extras: [] };
+  var promptDone = !!e.prompt;
+  document.getElementById("edgeState").textContent = hasShot(tk) ? "Exposed" : "Unexposed";
   var shot = document.getElementById("shot");
-  shot.textContent = done ? "Shot. Undo" : "I shot it";
-  shot.classList.toggle("done", done);
-  document.getElementById("other").disabled = pick.rerolled || done;
+  shot.textContent = promptDone ? "Prompt shot. Undo" : "I shot the prompt";
+  shot.classList.toggle("done", promptDone);
+  document.getElementById("other").disabled = pick.rerolled || promptDone;
 
-  var month = Object.keys(log).filter(function (k) { return k.slice(0, 7) === tk.slice(0, 7); }).length;
+  /* What's been logged today, each removable. */
+  var list = document.getElementById("todayList");
+  list.textContent = "";
+  function row(label, detail, onRemove) {
+    var li = document.createElement("li");
+    var w = document.createElement("div");
+    w.className = "what";
+    var sm = document.createElement("small");
+    sm.textContent = label;
+    var tx = document.createElement("span");
+    tx.textContent = detail;
+    w.appendChild(sm); w.appendChild(tx);
+    var rm = document.createElement("button");
+    rm.type = "button";
+    rm.textContent = "Remove";
+    rm.setAttribute("aria-label", "Remove " + label + ": " + detail);
+    rm.addEventListener("click", onRemove);
+    li.appendChild(w); li.appendChild(rm);
+    list.appendChild(li);
+  }
+  if (promptDone) row("Prompt", BANK[pick.cat][pick.idx][0], function () { entry(tk).prompt = false; tidy(tk); put(LOG_KEY, log); render(); });
+  (e.extras || []).forEach(function (x, i) {
+    row(x.cat, x.note || "Photos taken", function () { entry(tk).extras.splice(i, 1); tidy(tk); put(LOG_KEY, log); render(); });
+  });
+
+  var month = Object.keys(log).filter(function (k) { return k.slice(0, 7) === tk.slice(0, 7) && hasShot(k); }).length;
   var run = 0, d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  if (!log[keyOf(d)]) d.setDate(d.getDate() - 1);
-  while (log[keyOf(d)]) { run++; d.setDate(d.getDate() - 1); }
+  if (!hasShot(keyOf(d))) d.setDate(d.getDate() - 1);
+  while (hasShot(keyOf(d))) { run++; d.setDate(d.getDate() - 1); }
   var bits = [month + (month === 1 ? " day" : " days") + " this month"];
   if (run > 1) bits.push(run + " in a row");
-  document.getElementById("stats").textContent = month ? bits.join(" · ") : "Nothing logged yet this month.";
+  document.getElementById("stats").textContent = month ? bits.join(" \u00B7 ") : "Nothing logged yet this month.";
 }
 
 document.getElementById("shot").addEventListener("click", function () {
-  if (log[tk]) delete log[tk]; else log[tk] = 1;
+  var e = entry(tk);
+  e.prompt = !e.prompt;
+  tidy(tk);
   put(LOG_KEY, log);
   render();
 });
@@ -282,6 +377,20 @@ document.getElementById("other").addEventListener("click", function () {
   while (list.length > 1 && next === pick.idx) next = Math.floor(Math.random() * list.length);
   pick = { day: tk, cat: pick.cat, idx: next, rerolled: true };
   put(PICK_KEY, pick);
+  render();
+});
+document.getElementById("extra").addEventListener("click", function () {
+  openSheet(document.getElementById("sheet").hidden);
+});
+document.getElementById("sheetCancel").addEventListener("click", function () { openSheet(false); });
+document.getElementById("sheet").addEventListener("submit", function (ev) {
+  ev.preventDefault();
+  var note = document.getElementById("extraNote").value.trim();
+  entry(tk).extras.push({ cat: chosen || "Other", note: note });
+  put(LOG_KEY, log);
+  document.getElementById("extraNote").value = "";
+  chosen = null;
+  openSheet(false);
   render();
 });
 
