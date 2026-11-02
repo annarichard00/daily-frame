@@ -2,10 +2,11 @@
 
 One photo prompt a day for documenting a real life on film: home, the cats, James, friends, work, shows, nature, the Westminster / Denver area, and yourself. Not about making a good photo. It's about taking one.
 
-- Each day rotates through nine parts of life: Home, Cats, Friends, Work, Me (self-portraits), Nature, James, Shows & screens, Around here. On weekends the Work day becomes Around here, Nature, or Friends.
+- Each day rotates through nine parts of life: Home, Cats, Friends, Work, Me (self-portraits), Nature, James, Shows (live music), Around here. On weekends the Work day becomes Around here, Nature, or Friends.
 - The prompt for a given day is worked out from the date, so it's the same on every device.
 - "Different one" gives one swap per day, within the same part of life.
 - "I shot the prompt" logs the day. "Shot something else" logs any other photos (a show, a trip, anything) with an optional note, and those count too. Your log is saved on the device.
+- The calendar shows every month you've logged. Tap a day to see what you shot, remove something, or add photos you forgot to log.
 - No notifications. Open the app and tap.
 
 ## Editing prompts

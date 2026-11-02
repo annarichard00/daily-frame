@@ -79,6 +79,30 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .today li:last-child { border-bottom: 1px solid var(--line); }
 .today .what { min-width: 0; overflow-wrap: anywhere; }
 .today .what small { display: block; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cal { display: flex; flex-direction: column; gap: 10px; padding-top: 18px; border-top: 1.5px solid var(--line); }
+.cal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cal-head h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.01em; }
+.cal-nav { display: flex; gap: 6px; }
+button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-color: var(--line); font-size: 1.05rem; font-weight: 500; display: grid; place-items: center; }
+.dow, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.dow span { text-align: center; font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.06em; color: var(--muted); }
+.cell {
+  position: relative; aspect-ratio: 1; min-width: 0; min-height: 0; padding: 5px 6px; border-radius: 4px;
+  border: 1px solid var(--line); font-family: var(--mono); font-size: 0.78rem; font-weight: 500; color: var(--muted);
+  display: flex; align-items: flex-start; justify-content: flex-start; font-variant-numeric: tabular-nums;
+}
+.cell.blank { border-color: transparent; }
+.cell.shot { background: var(--amber); border-color: var(--amber); color: var(--on-amber); }
+.cell.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cell.sel { box-shadow: inset 0 0 0 2px var(--ink); }
+.cell:disabled { opacity: 0.35; }
+.cell .dots { position: absolute; left: 6px; bottom: 6px; display: flex; gap: 3px; }
+.cell .dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.8; }
+.day { display: flex; flex-direction: column; gap: 12px; border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.day[hidden] { display: none; }
+.day-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.day-head h3 { margin: 0; font-size: 1.05rem; }
+.day .sheet { border: 0; padding: 0; }
 .today button { min-height: 40px; padding: 6px 12px; font-size: 0.85rem; font-weight: 500; border-color: var(--line); color: var(--muted); flex: none; }
 </style>
 </head>
@@ -104,7 +128,7 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
   </div>
 
   <form class="sheet" id="sheet" hidden>
-    <p class="sheet-q">What was it?</p>
+    <p class="sheet-q" id="sheetQ">What was it?</p>
     <div class="chips" id="chips" role="group" aria-label="Part of life"></div>
     <label class="sr" for="extraNote">Note (optional)</label>
     <input id="extraNote" type="text" maxlength="120" placeholder="Optional: who, where, what" autocomplete="off">
@@ -116,6 +140,28 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
   <ul class="today" id="todayList"></ul>
   <p class="stats" id="stats"></p>
+
+  <section class="cal" aria-label="Calendar">
+    <div class="cal-head">
+      <h2 id="calMonth"></h2>
+      <div class="cal-nav">
+        <button class="icon" id="calPrev" type="button" aria-label="Previous month">&#8592;</button>
+        <button class="icon" id="calNext" type="button" aria-label="Next month">&#8594;</button>
+      </div>
+    </div>
+    <div class="dow" aria-hidden="true"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="grid" id="calGrid"></div>
+    <p class="stats" id="calStats"></p>
+    <div class="day" id="dayPanel" hidden>
+      <div class="day-head">
+        <h3 id="dayTitle"></h3>
+        <button class="icon" id="dayClose" type="button" aria-label="Close day">&#215;</button>
+      </div>
+      <ul class="today" id="dayList"></ul>
+      <p class="stats" id="dayEmpty" hidden>Nothing logged this day.</p>
+      <div class="actions"><button id="dayAdd" type="button">Add photos for this day</button></div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -188,16 +234,21 @@ var BANK = {
     ["Someone's laugh", "Catch it if you can. A blur is fine."],
     ["The plan you made", "A flyer, a calendar, a ticket, anything that says you're seeing people."]
   ],
-  "Shows & screens": [
-    ["Wristband, ticket, stamp", "Anything that proves you were there. Shoot it on your wrist, your phone, your jacket."],
-    ["The line outside", "Waiting to get in. Whoever's in front of you, whatever the weather is."],
-    ["The room before the lights drop", "A venue empty or filling up. Stage, floor, the bar."],
-    ["Flyers and posters", "A wall of shows on a wall. Telephone poles count."],
+  "Shows": [
+    ["Wristband, ticket, stamp", "Anything that proves you were there. On your wrist, your phone, your jacket."],
+    ["Headphones", "No show tonight? Shoot where your headphones are and what's playing."],
+    ["The line outside", "Waiting to get in. Whoever's in front of you, whatever the weather's doing."],
+    ["Setup", "Your DJ gear, the laptop, cables everywhere. Where your music happens."],
+    ["The room before the lights drop", "The venue empty or filling up. Stage, floor, the bar."],
+    ["Flyers and posters", "A wall of upcoming shows. Telephone poles count."],
+    ["The speaker stack", "The subs, the rig, whatever is rattling your chest."],
+    ["Next show", "Nothing tonight? The ticket in your inbox, the calendar, the countdown."],
     ["Lights, from the crowd", "Whatever the show is doing to the room."],
-    ["The theater marquee", "Or a ticket, a lobby, a program. Any movie night that happened."],
-    ["Headphones", "Where they are and what's plugged into them."],
-    ["Setup", "Your DJ gear, your laptop, cables everywhere. Where the music happens."],
-    ["What you're watching", "The screen from a side angle, with your living room around it."],
+    ["The record store", "The bins, the listening station, whatever you flipped through."],
+    ["Your people at the show", "Whoever you came with, mid-dance or mid-yell. Blur welcome."],
+    ["Music in the car", "The dash, the screen, the song on the drive."],
+    ["Getting ready", "The outfit, the mirror, the earplugs going in your pocket."],
+    ["Leaving", "The lot after, the walk to the car, ears still ringing."],
     ["Post-show wreckage", "Shoes, jacket, earplugs, glitter. Whatever the night left behind."]
   ],
   "Me": [
@@ -244,7 +295,7 @@ var BANK = {
     ["Something only locals notice", "A landmark that isn't one: a water tower, a dead tree, a weird building."]
   ]
 };
-var ORDER = ["Home", "Cats", "Friends", "Work", "Me", "Nature", "James", "Shows & screens", "Around here"];
+var ORDER = ["Home", "Cats", "Friends", "Work", "Me", "Nature", "James", "Shows", "Around here"];
 /* On weekends the Work day becomes one of these, alternating weekly. */
 var WEEKEND_SWAP = ["Around here", "Nature", "Friends"];
 var PICK_KEY = "dailyframe.pick";
@@ -297,17 +348,31 @@ function promptIndex(d, cat) {
 }
 function todaysPick() {
   var saved = get(PICK_KEY, null);
-  if (saved && saved.day === tk) return saved;
+  if (saved && saved.day === tk && BANK[saved.cat] && BANK[saved.cat][saved.idx]) return saved;
   var cat = category(today);
   return { day: tk, cat: cat, idx: promptIndex(today, cat), rerolled: false };
 }
 var pick = todaysPick();
 
 var CHIPS = ORDER.concat(["Other"]);
+var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+var DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 var chosen = null;
+var sheetDay = null;      /* which day the "something else" form logs to */
+var sheetInPanel = false; /* true when the form is open inside the calendar's day panel */
+var selDay = null;        /* day picked on the calendar */
+var calView = { y: today.getFullYear(), m: today.getMonth() };
+
+function $(id) { return document.getElementById(id); }
+function save() { put(LOG_KEY, log); }
+function parseKey(k) { var p = k.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+function shortDate(k) { var d = parseKey(k); return MONTH_NAMES[d.getMonth()].slice(0, 3) + " " + d.getDate(); }
+function longDate(k) { var d = parseKey(k); return DAY_NAMES[d.getDay()] + ", " + MONTH_NAMES[d.getMonth()] + " " + d.getDate(); }
+function defaultTitle(k) { var d = parseKey(k); var c = category(d); return BANK[c][promptIndex(d, c)][0]; }
+function itemCount(k) { var e = log[k]; if (!e) return 0; return (e.prompt ? 1 : 0) + (e.extras ? e.extras.length : 0); }
 
 function renderChips() {
-  var box = document.getElementById("chips");
+  var box = $("chips");
   box.textContent = "";
   CHIPS.forEach(function (c) {
     var b = document.createElement("button");
@@ -319,34 +384,35 @@ function renderChips() {
     box.appendChild(b);
   });
 }
-function openSheet(open) {
-  document.getElementById("sheet").hidden = !open;
-  document.getElementById("extra").setAttribute("aria-expanded", String(open));
-  if (open) {
-    chosen = chosen || pick.cat;
-    renderChips();
-    document.getElementById("extraNote").focus({ preventScroll: false });
+
+/* One form, two homes: under today's buttons, or inside a calendar day. */
+function openSheet(open, inPanel) {
+  var sheet = $("sheet");
+  if (!open) {
+    sheet.hidden = true;
+    sheetInPanel = false;
+    $("extra").setAttribute("aria-expanded", "false");
+    $("dayAdd").hidden = false;
+    return;
   }
+  sheetInPanel = !!inPanel;
+  sheetDay = inPanel ? selDay : tk;
+  if (inPanel) $("dayPanel").appendChild(sheet);
+  else $("todayList").before(sheet);
+  $("extra").setAttribute("aria-expanded", String(!inPanel));
+  $("dayAdd").hidden = !!inPanel;
+  $("sheetQ").textContent = inPanel && sheetDay !== tk ? "What did you shoot on " + shortDate(sheetDay) + "?" : "What was it?";
+  chosen = chosen || (sheetDay === tk ? pick.cat : "Other");
+  renderChips();
+  sheet.hidden = false;
+  $("extraNote").focus();
 }
 
-function render() {
-  var p = BANK[pick.cat][pick.idx];
-  document.getElementById("title").textContent = p[0];
-  document.getElementById("line").textContent = p[1];
-  document.getElementById("date").textContent = DOWS[today.getDay()] + " " + today.getDate() + " " + MONTHS[today.getMonth()];
-  document.getElementById("edgeL").textContent = "\u25B8 " + pick.cat;
-  document.getElementById("edgeR").textContent = DOWS[today.getDay()] + " " + pad(today.getDate()) + " " + MONTHS[today.getMonth()];
-  var e = log[tk] || { prompt: false, extras: [] };
-  var promptDone = !!e.prompt;
-  document.getElementById("edgeState").textContent = hasShot(tk) ? "Exposed" : "Unexposed";
-  var shot = document.getElementById("shot");
-  shot.textContent = promptDone ? "Prompt shot. Undo" : "I shot the prompt";
-  shot.classList.toggle("done", promptDone);
-  document.getElementById("other").disabled = pick.rerolled || promptDone;
-
-  /* What's been logged today, each removable. */
-  var list = document.getElementById("todayList");
-  list.textContent = "";
+/* Everything logged for one day, each removable. Returns how many items. */
+function buildRows(listEl, k) {
+  listEl.textContent = "";
+  var e = log[k];
+  if (!e) return 0;
   function row(label, detail, onRemove) {
     var li = document.createElement("li");
     var w = document.createElement("div");
@@ -362,12 +428,81 @@ function render() {
     rm.setAttribute("aria-label", "Remove " + label + ": " + detail);
     rm.addEventListener("click", onRemove);
     li.appendChild(w); li.appendChild(rm);
-    list.appendChild(li);
+    listEl.appendChild(li);
   }
-  if (promptDone) row("Prompt", BANK[pick.cat][pick.idx][0], function () { entry(tk).prompt = false; tidy(tk); put(LOG_KEY, log); render(); });
+  if (e.prompt) {
+    var title = e.title || (k === tk ? BANK[pick.cat][pick.idx][0] : defaultTitle(k));
+    row("Prompt", title, function () { var x = entry(k); x.prompt = false; delete x.title; tidy(k); save(); render(); });
+  }
   (e.extras || []).forEach(function (x, i) {
-    row(x.cat, x.note || "Photos taken", function () { entry(tk).extras.splice(i, 1); tidy(tk); put(LOG_KEY, log); render(); });
+    row(x.cat, x.note || "Photos taken", function () { entry(k).extras.splice(i, 1); tidy(k); save(); render(); });
   });
+  return itemCount(k);
+}
+
+function renderCal() {
+  var y = calView.y, m = calView.m;
+  var isCurrent = y === today.getFullYear() && m === today.getMonth();
+  $("calMonth").textContent = MONTH_NAMES[m] + " " + y;
+  $("calNext").disabled = isCurrent;
+  var grid = $("calGrid");
+  grid.textContent = "";
+  var first = new Date(y, m, 1).getDay();
+  var days = new Date(y, m + 1, 0).getDate();
+  for (var b = 0; b < first; b++) { var s = document.createElement("span"); s.className = "cell blank"; grid.appendChild(s); }
+  var shot = 0, best = 0, cur = 0;
+  for (var d = 1; d <= days; d++) {
+    var k = y + "-" + pad(m + 1) + "-" + pad(d);
+    var n = itemCount(k);
+    var future = k > tk;
+    if (n) { shot++; cur++; if (cur > best) best = cur; } else cur = 0;
+    var c = document.createElement("button");
+    c.type = "button";
+    c.className = "cell" + (n ? " shot" : "") + (k === tk ? " today" : "") + (k === selDay ? " sel" : "");
+    c.disabled = future;
+    c.textContent = d;
+    c.dataset.key = k;
+    c.setAttribute("aria-label", MONTH_NAMES[m] + " " + d + (n ? ", " + n + (n === 1 ? " thing" : " things") + " logged" : future ? "" : ", nothing logged"));
+    if (n) {
+      var dots = document.createElement("span");
+      dots.className = "dots";
+      for (var i = 0; i < Math.min(n, 4); i++) dots.appendChild(document.createElement("i"));
+      c.appendChild(dots);
+    }
+    grid.appendChild(c);
+  }
+  var span = isCurrent ? today.getDate() : days;
+  var bits = [shot + " of " + span + " days" + (isCurrent ? " so far" : "")];
+  if (best > 1) bits.push("longest run " + best);
+  $("calStats").textContent = shot ? bits.join(" · ") : (isCurrent ? "No frames logged yet this month." : "No frames logged this month.");
+  renderDay();
+}
+
+function renderDay() {
+  var p = $("dayPanel");
+  if (!selDay) { p.hidden = true; return; }
+  p.hidden = false;
+  $("dayTitle").textContent = longDate(selDay);
+  var n = buildRows($("dayList"), selDay);
+  $("dayEmpty").hidden = n > 0;
+}
+
+function render() {
+  var p = BANK[pick.cat][pick.idx];
+  $("title").textContent = p[0];
+  $("line").textContent = p[1];
+  $("date").textContent = DOWS[today.getDay()] + " " + today.getDate() + " " + MONTHS[today.getMonth()];
+  $("edgeL").textContent = "▸ " + pick.cat;
+  $("edgeR").textContent = DOWS[today.getDay()] + " " + pad(today.getDate()) + " " + MONTHS[today.getMonth()];
+  var e = log[tk] || { prompt: false, extras: [] };
+  var promptDone = !!e.prompt;
+  $("edgeState").textContent = hasShot(tk) ? "Exposed" : "Unexposed";
+  var shot = $("shot");
+  shot.textContent = promptDone ? "Prompt shot. Undo" : "I shot the prompt";
+  shot.classList.toggle("done", promptDone);
+  $("other").disabled = pick.rerolled || promptDone;
+
+  buildRows($("todayList"), tk);
 
   var month = Object.keys(log).filter(function (k) { return k.slice(0, 7) === tk.slice(0, 7) && hasShot(k); }).length;
   var run = 0, d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -375,17 +510,20 @@ function render() {
   while (hasShot(keyOf(d))) { run++; d.setDate(d.getDate() - 1); }
   var bits = [month + (month === 1 ? " day" : " days") + " this month"];
   if (run > 1) bits.push(run + " in a row");
-  document.getElementById("stats").textContent = month ? bits.join(" \u00B7 ") : "Nothing logged yet this month.";
+  $("stats").textContent = month ? bits.join(" · ") : "Nothing logged yet this month.";
+
+  renderCal();
 }
 
-document.getElementById("shot").addEventListener("click", function () {
+$("shot").addEventListener("click", function () {
   var e = entry(tk);
   e.prompt = !e.prompt;
+  if (e.prompt) e.title = BANK[pick.cat][pick.idx][0]; else delete e.title;
   tidy(tk);
-  put(LOG_KEY, log);
+  save();
   render();
 });
-document.getElementById("other").addEventListener("click", function () {
+$("other").addEventListener("click", function () {
   var list = BANK[pick.cat];
   var next = pick.idx;
   while (list.length > 1 && next === pick.idx) next = Math.floor(Math.random() * list.length);
@@ -393,26 +531,49 @@ document.getElementById("other").addEventListener("click", function () {
   put(PICK_KEY, pick);
   render();
 });
-document.getElementById("extra").addEventListener("click", function () {
-  openSheet(document.getElementById("sheet").hidden);
+$("extra").addEventListener("click", function () {
+  var openHere = !$("sheet").hidden && !sheetInPanel;
+  openSheet(!openHere, false);
 });
-document.getElementById("sheetCancel").addEventListener("click", function () { openSheet(false); });
-document.getElementById("sheet").addEventListener("submit", function (ev) {
+$("sheetCancel").addEventListener("click", function () { openSheet(false); });
+$("sheet").addEventListener("submit", function (ev) {
   ev.preventDefault();
-  var note = document.getElementById("extraNote").value.trim();
-  entry(tk).extras.push({ cat: chosen || "Other", note: note });
-  put(LOG_KEY, log);
-  document.getElementById("extraNote").value = "";
+  var note = $("extraNote").value.trim();
+  entry(sheetDay || tk).extras.push({ cat: chosen || "Other", note: note });
+  save();
+  $("extraNote").value = "";
   chosen = null;
   openSheet(false);
   render();
 });
 
+$("calGrid").addEventListener("click", function (ev) {
+  var c = ev.target.closest("button.cell");
+  if (!c || c.disabled) return;
+  selDay = selDay === c.dataset.key ? null : c.dataset.key;
+  if (sheetInPanel) openSheet(false);
+  renderCal();
+  if (selDay && $("dayPanel").scrollIntoView) $("dayPanel").scrollIntoView({ block: "nearest", behavior: "smooth" });
+});
+$("calPrev").addEventListener("click", function () {
+  calView = calView.m === 0 ? { y: calView.y - 1, m: 11 } : { y: calView.y, m: calView.m - 1 };
+  selDay = null; if (sheetInPanel) openSheet(false);
+  renderCal();
+});
+$("calNext").addEventListener("click", function () {
+  if ($("calNext").disabled) return;
+  calView = calView.m === 11 ? { y: calView.y + 1, m: 0 } : { y: calView.y, m: calView.m + 1 };
+  selDay = null; if (sheetInPanel) openSheet(false);
+  renderCal();
+});
+$("dayClose").addEventListener("click", function () { selDay = null; if (sheetInPanel) openSheet(false); renderCal(); });
+$("dayAdd").addEventListener("click", function () { if (selDay) openSheet(true, true); });
+
 /* If the app stays open past midnight, pick up the new day on return. */
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState !== "visible") return;
   var n = new Date();
-  if (keyOf(n) !== tk) { today = n; tk = keyOf(n); pick = todaysPick(); render(); }
+  if (keyOf(n) !== tk) { today = n; tk = keyOf(n); pick = todaysPick(); calView = { y: n.getFullYear(), m: n.getMonth() }; selDay = null; render(); }
 });
 
 render();
