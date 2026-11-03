@@ -120,7 +120,33 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
 .breakdown .n { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .break-label { margin: 6px 0 0; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .break-label[hidden] { display: none; }
-#recapBtn[hidden] { display: none; }
+#recapBtn[hidden], #yearBtn[hidden] { display: none; }
+.sec { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1.5px solid var(--line); }
+.sec h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.01em; }
+.nudge { margin: 0; padding: 12px 14px; border: 1.5px solid var(--amber); border-radius: 10px; font-size: 0.95rem; }
+.nudge[hidden] { display: none; }
+.otd { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1.5px dashed var(--line); border-radius: 10px; }
+.otd[hidden] { display: none; }
+.otd-label { margin: 0; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.otd-item { margin: 0; overflow-wrap: anywhere; }
+.otd-item .sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
+.roll-name { margin: 0; font-weight: 600; font-size: 1.05rem; overflow-wrap: anywhere; }
+.roll-count { display: flex; align-items: center; gap: 14px; }
+.roll-num { font-family: var(--mono); font-size: 1.9rem; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; min-width: 5.2ch; text-align: center; }
+.roll-num small { font-size: 0.55em; color: var(--muted); }
+.roll-bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.roll-bar i { display: block; height: 100%; background: var(--amber); border-radius: 4px; transition: width 0.3s; }
+.roll-form { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.roll-form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.roll-form input, .roll-form select {
+  font: inherit; color: var(--ink); background: transparent; width: 100%; min-height: 48px;
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px;
+}
+.roll-form input:focus-visible, .roll-form select:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+.past { list-style: none; margin: 0; padding: 0; }
+.past li { padding: 9px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.past li span:last-child { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.past-label { margin: 4px 0 0; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 
 /* recap: full-screen tap-through story */
 .recap {
@@ -165,6 +191,7 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
 <body>
 <div class="app">
   <div class="top"><div class="name">Daily Frame</div><div class="date" id="date"></div></div>
+  <p class="nudge" id="nudge" hidden></p>
 
   <div class="frame">
     <div class="holes" aria-hidden="true"></div>
@@ -196,6 +223,7 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
 
   <ul class="today" id="todayList"></ul>
   <p class="stats" id="stats"></p>
+  <div class="otd" id="otd" hidden></div>
 
   <section class="cal" aria-label="Calendar">
     <div class="cal-head">
@@ -210,7 +238,7 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
     <p class="stats" id="calStats"></p>
     <p class="break-label" id="breakLabel" hidden>What you shot</p>
     <ul class="breakdown" id="calBreak"></ul>
-    <div class="actions"><button id="recapBtn" type="button" hidden>See recap</button></div>
+    <div class="actions"><button id="recapBtn" type="button" hidden>See recap</button><button id="yearBtn" type="button" hidden>Year in review</button></div>
     <div class="day" id="dayPanel" hidden>
       <div class="day-head">
         <h3 id="dayTitle"></h3>
@@ -221,9 +249,28 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
       <div class="actions"><button id="dayAdd" type="button">Add photos for this day</button></div>
     </div>
   </section>
+
+  <section class="sec" aria-label="What's loaded">
+    <h2>What's loaded</h2>
+    <div id="rollView"></div>
+  </section>
+
+  <section class="sec" aria-label="Backup">
+    <h2>Backup</h2>
+    <p class="stats" id="backupInfo">Your log lives only on this phone. Save a backup now and then so nothing gets lost.</p>
+    <div class="actions">
+      <button id="exportBtn" type="button">Save backup</button>
+      <button id="importBtn" type="button">Restore backup</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <p class="stats" id="backupMsg" role="status"></p>
+  </section>
 </div>
 
-<div class="recap" id="recap" hidden role="dialog" aria-modal="true" aria-label="Monthly recap">
+<datalist id="cams"><option value="Olympus OM-2S"><option value="Nikon N80"><option value="Pentax Spotmatic"></datalist>
+<datalist id="films"><option value="Kodak Portra 400"><option value="Kodak Portra 160"><option value="Kodak Gold 200"><option value="Kodak Ultramax 400"><option value="Kodak Ektar 100"><option value="Kodak Tri-X 400"><option value="Ilford HP5 Plus"><option value="CineStill 800T"><option value="Fujifilm 400"></datalist>
+
+<div class="recap" id="recap" hidden role="dialog" aria-modal="true" aria-label="Recap">
   <div class="recap-top">
     <div class="recap-bars" id="recapBars" aria-hidden="true"></div>
     <button class="icon" id="recapClose" type="button" aria-label="Close recap">&#215;</button>
@@ -417,11 +464,30 @@ function promptIndex(d, cat) {
   var len = BANK[cat].length;
   return (((round + shift) % len) + len) % len;
 }
+/* The easiest prompts, used to get back in after a few days off. */
+var EASY = [["Home", "The coffee situation"], ["Cats", "The cats, wherever they are"], ["Me", "Mirror, as is"],
+  ["Home", "Out the window"], ["Home", "On the counter"], ["Nature", "Sky"], ["Home", "Shoes by the door"], ["Me", "Your hands"]];
+function daysSinceLast() {
+  var keys = Object.keys(log).filter(function (k) { return k < tk && hasShot(k); }).sort();
+  if (!keys.length) return 0;
+  var p = keys[keys.length - 1].split("-");
+  return dayNumber(today) - dayNumber(new Date(+p[0], +p[1] - 1, +p[2]));
+}
 function todaysPick() {
   var saved = get(PICK_KEY, null);
   if (saved && saved.day === tk && BANK[saved.cat] && BANK[saved.cat][saved.idx]) return saved;
-  var cat = category(today);
-  return { day: tk, cat: cat, idx: promptIndex(today, cat), rerolled: false };
+  var cat = category(today), idx = promptIndex(today, cat);
+  var gap = hasShot(tk) ? 0 : daysSinceLast();
+  if (gap >= 3) {
+    var e = EASY[dayNumber(today) % EASY.length];
+    var i = BANK[e[0]].map(function (x) { return x[0]; }).indexOf(e[1]);
+    if (i >= 0) {
+      var easy = { day: tk, cat: e[0], idx: i, rerolled: false, easy: true, gap: gap };
+      put(PICK_KEY, easy); /* keep it for the day, even after logging */
+      return easy;
+    }
+  }
+  return { day: tk, cat: cat, idx: idx, rerolled: false };
 }
 var pick = todaysPick();
 
@@ -467,29 +533,36 @@ function stripes(cats) {
   return "linear-gradient(90deg, " + parts.join(", ") + ")";
 }
 
-/* Everything the calendar summary and the recap need for one month. */
-function monthStats(y, m) {
-  var isCurrent = y === today.getFullYear() && m === today.getMonth();
-  var days = new Date(y, m + 1, 0).getDate();
-  var st = { y: y, m: m, isCurrent: isCurrent, days: days, span: isCurrent ? today.getDate() : days,
-    shotDays: 0, items: 0, counts: {}, best: 0, bestStart: 0, weekdays: [0,0,0,0,0,0,0], notes: [] };
-  var cur = 0, curStart = 0;
-  for (var d = 1; d <= days; d++) {
-    var k = y + "-" + pad(m + 1) + "-" + pad(d);
+/* Everything the calendar summary and the recaps need, for a month (m = 0-11) or a whole year (m = null). */
+function statsFor(y, m) {
+  var year = m == null;
+  var start = year ? new Date(y, 0, 1) : new Date(y, m, 1);
+  var end = year ? new Date(y, 11, 31) : new Date(y, m + 1, 0);
+  var isCurrent = year ? y === today.getFullYear() : (y === today.getFullYear() && m === today.getMonth());
+  var total = dayNumber(end) - dayNumber(start) + 1;
+  var st = { y: y, m: m, year: year, isCurrent: isCurrent, days: total,
+    span: isCurrent ? dayNumber(today) - dayNumber(start) + 1 : total,
+    label: year ? String(y) : MONTH_NAMES[m], unit: year ? "year" : "month", next: year ? String(y + 1) : MONTH_NAMES[(m + 1) % 12],
+    shotDays: 0, items: 0, counts: {}, best: 0, bestFrom: null, bestTo: null,
+    weekdays: [0,0,0,0,0,0,0], months: [0,0,0,0,0,0,0,0,0,0,0,0], notes: [] };
+  var cur = 0, curStart = null;
+  for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    var k = keyOf(d);
     var cats = catsOf(k);
     if (cats.length) {
       st.shotDays++; st.items += cats.length;
-      st.weekdays[new Date(y, m, d).getDay()]++;
+      st.weekdays[d.getDay()]++; st.months[d.getMonth()]++;
       cats.forEach(function (c) { st.counts[c] = (st.counts[c] || 0) + 1; });
-      if (!cur) curStart = d;
+      if (!cur) curStart = k;
       cur++;
-      if (cur > st.best) { st.best = cur; st.bestStart = curStart; }
+      if (cur > st.best) { st.best = cur; st.bestFrom = curStart; st.bestTo = k; }
       (log[k].extras || []).forEach(function (x) { if (x.note) st.notes.push({ k: k, cat: normCat(x.cat), note: x.note }); });
     } else cur = 0;
   }
   st.ranked = Object.keys(st.counts).sort(function (a, b) { return st.counts[b] - st.counts[a] || CHIPS.indexOf(a) - CHIPS.indexOf(b); });
   return st;
 }
+function monthStats(y, m) { return statsFor(y, m); }
 
 function renderChips() {
   var box = $("chips");
@@ -555,10 +628,10 @@ function buildRows(listEl, k) {
   if (e.prompt) {
     var title = e.title || (k === tk ? BANK[pick.cat][pick.idx][0] : defaultTitle(k));
     var pcat = normCat(e.cat || (k === tk ? pick.cat : category(parseKey(k))));
-    row("Prompt \u00B7 " + pcat, title, function () { var x = entry(k); x.prompt = false; delete x.title; delete x.cat; tidy(k); save(); render(); }, pcat);
+    row("Prompt \u00B7 " + pcat + rollTag(e.roll), title, function () { var x = entry(k); bumpFrames(-1, x.roll); x.prompt = false; delete x.title; delete x.cat; delete x.roll; tidy(k); save(); render(); }, pcat);
   }
   (e.extras || []).forEach(function (x, i) {
-    row(normCat(x.cat), x.note || "Photos taken", function () { entry(k).extras.splice(i, 1); tidy(k); save(); render(); }, x.cat);
+    row(normCat(x.cat) + rollTag(x.roll), x.note || "Photos taken", function () { bumpFrames(-1, x.roll); entry(k).extras.splice(i, 1); tidy(k); save(); render(); }, x.cat);
   });
   return itemCount(k);
 }
@@ -618,6 +691,9 @@ function renderCal() {
   var rb = $("recapBtn");
   rb.hidden = !st.shotDays;
   rb.textContent = isCurrent ? MONTH_NAMES[m] + " so far" : "See your " + MONTH_NAMES[m] + " recap";
+  var yb = $("yearBtn"), ys = statsFor(y, null);
+  yb.hidden = !ys.shotDays;
+  yb.textContent = y === today.getFullYear() ? y + " so far" : y + " in review";
   renderDay();
 }
 
@@ -655,13 +731,117 @@ function render() {
   if (run > 1) bits.push(run + " in a row");
   $("stats").textContent = month ? bits.join(" · ") : "Nothing logged yet this month.";
 
+  var nudge = $("nudge");
+  nudge.hidden = !(pick.easy && !hasShot(tk));
+  if (!nudge.hidden) nudge.textContent = "Your last frame was " + pick.gap + " days ago. Here's an easy one to get back in.";
+
+  renderOTD();
   renderCal();
+  renderRoll();
+}
+
+/* On this day: what was logged on today's date in earlier years. */
+function renderOTD() {
+  var box = $("otd");
+  box.textContent = "";
+  var md = tk.slice(5);
+  var hits = Object.keys(log).filter(function (k) { return k.slice(5) === md && k < tk && hasShot(k); }).sort().reverse();
+  if (!hits.length) { box.hidden = true; return; }
+  box.hidden = false;
+  var k = hits[0], yrs = today.getFullYear() - +k.slice(0, 4), e = log[k];
+  box.appendChild(el("p", "otd-label", (yrs === 1 ? "One year" : yrs + " years") + " ago today"));
+  function line(cat, text) { var p = el("p", "otd-item"); p.appendChild(swatch(cat)); p.appendChild(document.createTextNode(normCat(cat) + ": " + text)); box.appendChild(p); }
+  if (e.prompt) line(e.cat || category(parseKey(k)), e.title || defaultTitle(k));
+  (e.extras || []).forEach(function (x) { line(x.cat, x.note || "Photos taken"); });
+}
+
+/* ---------- what's loaded: camera, film, frame count ---------- */
+var ROLL_KEY = "dailyframe.rolls";
+var rolls = get(ROLL_KEY, { current: null, done: [] });
+if (!rolls.done) rolls.done = [];
+var finishArmed = false;
+function saveRolls() { put(ROLL_KEY, rolls); }
+function findRoll(id) {
+  if (!id) return null;
+  if (rolls.current && rolls.current.id === id) return rolls.current;
+  for (var i = 0; i < rolls.done.length; i++) if (rolls.done[i].id === id) return rolls.done[i];
+  return null;
+}
+function rollTag(id) { var r = findRoll(id); return r ? " \u00B7 " + r.film : ""; }
+function bumpFrames(n, id) {
+  if (!rolls.current || !id || rolls.current.id !== id) return;
+  rolls.current.frames = Math.max(0, (rolls.current.frames || 0) + n);
+  saveRolls();
+}
+function renderRoll() {
+  var box = $("rollView");
+  box.textContent = "";
+  var r = rolls.current;
+  if (r) {
+    box.appendChild(el("p", "roll-name", r.camera + " \u00B7 " + r.film));
+    var row = el("div", "roll-count");
+    var minus = el("button", "icon", "\u2212"); minus.type = "button"; minus.setAttribute("aria-label", "One frame fewer");
+    var num = el("div", "roll-num"); num.appendChild(document.createTextNode(String(r.frames || 0)));
+    num.appendChild(el("small", null, " / " + r.exp));
+    var plus = el("button", "icon", "+"); plus.type = "button"; plus.setAttribute("aria-label", "One frame more");
+    minus.addEventListener("click", function () { r.frames = Math.max(0, (r.frames || 0) - 1); saveRolls(); renderRoll(); });
+    plus.addEventListener("click", function () { r.frames = (r.frames || 0) + 1; saveRolls(); renderRoll(); });
+    row.appendChild(minus); row.appendChild(num); row.appendChild(plus);
+    box.appendChild(row);
+    var bar = el("div", "roll-bar"), fill = el("i");
+    fill.style.width = Math.min(100, (r.frames || 0) / r.exp * 100) + "%";
+    bar.appendChild(fill); box.appendChild(bar);
+    var left = r.exp - (r.frames || 0);
+    box.appendChild(el("p", "stats", left > 0
+      ? "Loaded " + shortDate(r.start) + ". About " + left + " frames left. Each thing you log counts as a frame; fix the count with + and \u2212."
+      : "Roll's full. Time to rewind and finish it."));
+    var acts = el("div", "actions");
+    var fin = el("button", null, finishArmed ? "Tap again to finish the roll" : "Finish roll"); fin.type = "button";
+    fin.addEventListener("click", function () {
+      if (!finishArmed) { finishArmed = true; renderRoll(); setTimeout(function () { finishArmed = false; renderRoll(); }, 4000); return; }
+      finishArmed = false;
+      r.end = tk;
+      rolls.done.unshift(r);
+      rolls.current = null;
+      saveRolls(); renderRoll();
+    });
+    acts.appendChild(fin); box.appendChild(acts);
+  } else {
+    box.appendChild(el("p", "stats", "Nothing loaded. Load a roll to keep count of frames and see which roll each day landed on."));
+    var form = el("form", "roll-form");
+    form.innerHTML = '<label>Camera<input id="rollCam" list="cams" maxlength="40" required placeholder="Olympus OM-2S" autocomplete="off"></label>' +
+      '<label>Film<input id="rollFilm" list="films" maxlength="40" required placeholder="Kodak Portra 400" autocomplete="off"></label>' +
+      '<label>Exposures<select id="rollExp"><option>36</option><option>24</option><option>12</option></select></label>' +
+      '<div class="actions"><button class="primary" type="submit">Load roll</button></div>';
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var cam = $("rollCam").value.trim(), film = $("rollFilm").value.trim();
+      if (!cam || !film) return;
+      rolls.current = { id: "r" + Date.now(), camera: cam, film: film, exp: +$("rollExp").value || 36, frames: 0, start: tk };
+      saveRolls(); renderRoll();
+    });
+    box.appendChild(form);
+  }
+  if (rolls.done.length) {
+    box.appendChild(el("p", "past-label", "Finished rolls"));
+    var ul = el("ul", "past");
+    rolls.done.slice(0, 5).forEach(function (d) {
+      var li = el("li");
+      li.appendChild(el("span", null, d.film + " \u00B7 " + d.camera));
+      li.appendChild(el("span", null, shortDate(d.start) + (d.end && d.end !== d.start ? " \u2013 " + shortDate(d.end) : "") + " \u00B7 " + (d.frames || 0) + " frames"));
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+  }
 }
 
 $("shot").addEventListener("click", function () {
   var e = entry(tk);
   e.prompt = !e.prompt;
-  if (e.prompt) { e.title = BANK[pick.cat][pick.idx][0]; e.cat = pick.cat; } else { delete e.title; delete e.cat; }
+  if (e.prompt) {
+    e.title = BANK[pick.cat][pick.idx][0]; e.cat = pick.cat;
+    if (rolls.current) { e.roll = rolls.current.id; bumpFrames(1, e.roll); }
+  } else { bumpFrames(-1, e.roll); delete e.title; delete e.cat; delete e.roll; }
   tidy(tk);
   save();
   render();
@@ -682,7 +862,9 @@ $("sheetCancel").addEventListener("click", function () { openSheet(false); });
 $("sheet").addEventListener("submit", function (ev) {
   ev.preventDefault();
   var note = $("extraNote").value.trim();
-  entry(sheetDay || tk).extras.push({ cat: chosen || "Other", note: note });
+  var day = sheetDay || tk, item = { cat: chosen || "Other", note: note };
+  if (rolls.current && day >= rolls.current.start) { item.roll = rolls.current.id; bumpFrames(1, item.roll); }
+  entry(day).extras.push(item);
   save();
   $("extraNote").value = "";
   chosen = null;
@@ -719,12 +901,12 @@ var slides = [], slideAt = 0;
 function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
 
 function buildSlides(st) {
-  var M = MONTH_NAMES[st.m], out = [];
+  var L = st.label, out = [];
   var dark = { bg: "#1A1F1D", fg: "#EEF0EA" };
   var top = st.ranked[0];
   out.push({ bg: dark.bg, fg: dark.fg, build: function (box) {
-    box.appendChild(el("p", "recap-kicker", st.isCurrent ? "So far" : "Your month on film"));
-    box.appendChild(el("h2", "recap-h", M + (st.isCurrent ? ", so far" : ", developed")));
+    box.appendChild(el("p", "recap-kicker", st.isCurrent ? "So far" : (st.year ? "Your year on film" : "Your month on film")));
+    box.appendChild(el("h2", "recap-h", L + (st.isCurrent ? ", so far" : ", developed")));
     box.appendChild(el("p", "recap-p", "A look back at what you pointed your camera at."));
     box.appendChild(el("p", "recap-hint", "Tap to keep going"));
   } });
@@ -732,7 +914,7 @@ function buildSlides(st) {
     box.appendChild(el("p", "recap-kicker", "Days you shot"));
     box.appendChild(el("p", "recap-big", String(st.shotDays)));
     var pct = Math.round(st.shotDays / st.span * 100);
-    box.appendChild(el("p", "recap-p", "out of " + st.span + " days" + (st.isCurrent ? " so far" : "") + ". That's " + pct + "% of " + M + " on the record."));
+    box.appendChild(el("p", "recap-p", "out of " + st.span + " days" + (st.isCurrent ? " so far" : "") + ". That's " + pct + "% of " + L + " on the record."));
   } });
   if (top) out.push({ bg: color(top), fg: "#1A1F1D", build: function (box) {
     box.appendChild(el("p", "recap-kicker", "Most photographed"));
@@ -760,11 +942,21 @@ function buildSlides(st) {
     });
     box.appendChild(ul);
   } });
+  if (st.year) {
+    var bm = Math.max.apply(null, st.months);
+    if (bm > 0) {
+      var bi = st.months.indexOf(bm);
+      out.push({ bg: "var(--c-shows)", fg: "#1A1F1D", build: function (box) {
+        box.appendChild(el("p", "recap-kicker", "Best month"));
+        box.appendChild(el("h2", "recap-h", MONTH_NAMES[bi]));
+        box.appendChild(el("p", "recap-p", bm + " days with photos. Your most documented month."));
+      } });
+    }
+  }
   if (st.best > 1) out.push({ bg: "var(--c-nature)", fg: "#1A1F1D", build: function (box) {
     box.appendChild(el("p", "recap-kicker", "Longest run"));
     box.appendChild(el("p", "recap-big", String(st.best)));
-    var end = st.bestStart + st.best - 1;
-    box.appendChild(el("p", "recap-p", "days in a row, " + M.slice(0, 3) + " " + st.bestStart + " to " + end + "."));
+    box.appendChild(el("p", "recap-p", "days in a row, " + shortDate(st.bestFrom) + " to " + shortDate(st.bestTo) + "."));
   } });
   var wdMax = Math.max.apply(null, st.weekdays);
   if (st.shotDays >= 4 && wdMax >= 2) {
@@ -772,7 +964,7 @@ function buildSlides(st) {
     out.push({ bg: "var(--c-me)", fg: "#1A1F1D", build: function (box) {
       box.appendChild(el("p", "recap-kicker", "Your shooting day"));
       box.appendChild(el("h2", "recap-h", DAY_NAMES[wd] + "s"));
-      box.appendChild(el("p", "recap-p", "You shot on " + wdMax + " " + DAY_NAMES[wd] + "s this month, more than any other day."));
+      box.appendChild(el("p", "recap-p", "You shot on " + wdMax + " " + DAY_NAMES[wd] + "s this " + st.unit + ", more than any other day."));
     } });
   }
   var missing = ORDER.filter(function (c) { return !st.counts[c]; });
@@ -781,10 +973,10 @@ function buildSlides(st) {
     box.appendChild(el("p", "recap-kicker", "Less of"));
     if (missing.length) {
       box.appendChild(el("h2", "recap-h", missing.slice(0, 3).join(", ")));
-      box.appendChild(el("p", "recap-p", "didn't make it onto the roll" + (st.isCurrent ? " yet." : " this month.") + " No pressure, just something to notice."));
+      box.appendChild(el("p", "recap-p", "didn't make it onto the roll" + (st.isCurrent ? " yet." : " this " + st.unit + ".") + " No pressure, just something to notice."));
     } else {
       box.appendChild(el("h2", "recap-h", least));
-      box.appendChild(el("p", "recap-p", "only " + st.counts[least] + (st.counts[least] === 1 ? " time" : " times") + ". Maybe a little more of it next month."));
+      box.appendChild(el("p", "recap-p", "only " + st.counts[least] + (st.counts[least] === 1 ? " time" : " times") + ". Maybe a little more of it next " + st.unit + "."));
     }
   } });
   if (st.notes.length) out.push({ bg: "var(--c-friends)", fg: "#1A1F1D", build: function (box) {
@@ -792,7 +984,7 @@ function buildSlides(st) {
     var ul = el("ul", "recap-notes");
     st.notes.slice(-6).reverse().forEach(function (n) {
       var li = el("li");
-      li.appendChild(el("small", null, shortDate(n.k) + " \u00B7 " + n.cat));
+      li.appendChild(el("small", null, shortDate(n.k) + " · " + n.cat));
       li.appendChild(document.createTextNode(n.note));
       ul.appendChild(li);
     });
@@ -800,8 +992,8 @@ function buildSlides(st) {
   } });
   out.push({ bg: dark.bg, fg: dark.fg, build: function (box) {
     box.appendChild(el("p", "recap-kicker", "That's a wrap"));
-    var left = st.span < st.days ? st.days - st.span : 0;
-    box.appendChild(el("h2", "recap-h", st.isCurrent ? left + " days of " + M + " left." : MONTH_NAMES[(st.m + 1) % 12] + " starts with one frame."));
+    var left = st.days - st.span;
+    box.appendChild(el("h2", "recap-h", st.isCurrent ? left + " days of " + L + " left." : st.next + " starts with one frame."));
     box.appendChild(el("p", "recap-p", "Not about the best photo. Just about taking one."));
     var done = el("button", "recap-done", "Done");
     done.type = "button";
@@ -824,7 +1016,7 @@ function showSlide(i) {
   slides.forEach(function (_, j) { var b = document.createElement("span"); if (j <= slideAt) b.className = "on"; bars.appendChild(b); });
 }
 function openRecap(y, m) {
-  slides = buildSlides(monthStats(y, m));
+  slides = buildSlides(statsFor(y, m));
   $("recap").hidden = false;
   document.body.style.overflow = "hidden";
   showSlide(0);
@@ -839,6 +1031,7 @@ $("recapNext").addEventListener("click", function () { if (slideAt < slides.leng
 $("recapBack").addEventListener("click", function () { showSlide(slideAt - 1); });
 $("recapClose").addEventListener("click", closeRecap);
 $("recapBtn").addEventListener("click", function () { openRecap(calView.y, calView.m); });
+$("yearBtn").addEventListener("click", function () { openRecap(calView.y, null); });
 document.addEventListener("keydown", function (ev) {
   if ($("recap").hidden) return;
   if (ev.key === "Escape") closeRecap();
@@ -846,18 +1039,91 @@ document.addEventListener("keydown", function (ev) {
   else if (ev.key === "ArrowLeft") showSlide(slideAt - 1);
 });
 
-/* In the first week of a month, open last month's recap once, automatically. */
+/* In the first week of a month, open last month's recap once, automatically.
+   In the first week of January, the year in review follows on the next open. */
 function maybeAutoRecap() {
   if (today.getDate() > 7) return;
   var y = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
   var m = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-  var id = y + "-" + pad(m + 1);
   var seen = get(SEEN_KEY, {});
-  if (seen[id] || !monthStats(y, m).shotDays) return;
-  seen[id] = 1;
-  put(SEEN_KEY, seen);
-  openRecap(y, m);
+  var id = y + "-" + pad(m + 1);
+  if (!seen[id] && statsFor(y, m).shotDays) { seen[id] = 1; put(SEEN_KEY, seen); openRecap(y, m); return; }
+  if (today.getMonth() === 0) {
+    var yid = "year-" + y;
+    if (!seen[yid] && statsFor(y, null).shotDays) { seen[yid] = 1; put(SEEN_KEY, seen); openRecap(y, null); }
+  }
 }
+
+/* ---------- backup ---------- */
+var BACKUP_KEY = "dailyframe.lastBackup";
+function backupNote() {
+  var last = get(BACKUP_KEY, null);
+  $("backupInfo").textContent = last
+    ? "Last backup: " + shortDate(last) + (last.slice(0, 4) !== tk.slice(0, 4) ? ", " + last.slice(0, 4) : "") + ". Your log lives only on this phone, so save one now and then."
+    : "Your log lives only on this phone. Save a backup now and then so nothing gets lost.";
+}
+$("exportBtn").addEventListener("click", function () {
+  var data = { app: "daily-frame", version: 1, exported: new Date().toISOString(), log: log, rolls: rolls, recapSeen: get(SEEN_KEY, {}) };
+  var json = JSON.stringify(data, null, 1);
+  var name = "daily-frame-backup-" + tk + ".json";
+  function done(msg) { put(BACKUP_KEY, tk); backupNote(); $("backupMsg").textContent = msg; }
+  function download() {
+    var url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    var a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    done("Saved " + name + " to your downloads.");
+  }
+  var file = null;
+  try { file = new File([json], name, { type: "application/json" }); } catch (e) {}
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: "Daily Frame backup" })
+      .then(function () { done("Backup saved. Keep it somewhere like Files or iCloud Drive."); })
+      .catch(function (err) { if (!err || err.name !== "AbortError") download(); });
+  } else download();
+});
+$("importBtn").addEventListener("click", function () { $("importFile").click(); });
+$("importFile").addEventListener("change", function () {
+  var f = this.files && this.files[0];
+  this.value = "";
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function () {
+    var d;
+    try { d = JSON.parse(reader.result); } catch (e) { d = null; }
+    if (!d || d.app !== "daily-frame" || typeof d.log !== "object") { $("backupMsg").textContent = "That file isn't a Daily Frame backup. Pick the .json file the app saved."; return; }
+    var added = 0;
+    Object.keys(d.log).forEach(function (k) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
+      var v = d.log[k];
+      if (typeof v !== "object" || !v) v = { prompt: true, extras: [] };
+      var extras = (Array.isArray(v.extras) ? v.extras : []).filter(function (x) { return x && typeof x.cat === "string"; })
+        .map(function (x) { var o = { cat: String(x.cat).slice(0, 40), note: String(x.note || "").slice(0, 120) }; if (x.roll) o.roll = String(x.roll); return o; });
+      var incoming = (v.prompt ? 1 : 0) + extras.length;
+      if (!incoming || incoming <= itemCount(k)) return;
+      var e = { prompt: !!v.prompt, extras: extras };
+      if (v.title) e.title = String(v.title).slice(0, 80);
+      if (v.cat) e.cat = String(v.cat).slice(0, 40);
+      if (v.roll) e.roll = String(v.roll);
+      log[k] = e; added++;
+    });
+    if (d.rolls && typeof d.rolls === "object") {
+      var ids = {};
+      rolls.done.forEach(function (r) { ids[r.id] = 1; });
+      if (rolls.current) ids[rolls.current.id] = 1;
+      (Array.isArray(d.rolls.done) ? d.rolls.done : []).forEach(function (r) { if (r && r.id && !ids[r.id]) { rolls.done.push(r); ids[r.id] = 1; } });
+      if (!rolls.current && d.rolls.current && d.rolls.current.id && !ids[d.rolls.current.id]) rolls.current = d.rolls.current;
+      rolls.done.sort(function (a, b) { return String(b.end || "").localeCompare(String(a.end || "")); });
+      saveRolls();
+    }
+    if (d.recapSeen && typeof d.recapSeen === "object") { var seen = get(SEEN_KEY, {}); Object.keys(d.recapSeen).forEach(function (k) { seen[k] = 1; }); put(SEEN_KEY, seen); }
+    save();
+    render();
+    $("backupMsg").textContent = added ? "Restored " + added + (added === 1 ? " day." : " days.") : "Everything in that backup was already here.";
+  };
+  reader.readAsText(f);
+});
 
 /* If the app stays open past midnight, pick up the new day on return. */
 document.addEventListener("visibilitychange", function () {
@@ -867,6 +1133,7 @@ document.addEventListener("visibilitychange", function () {
 });
 
 render();
+backupNote();
 maybeAutoRecap();
 if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
 </script>
