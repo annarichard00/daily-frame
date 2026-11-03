@@ -7,6 +7,8 @@ One photo prompt a day for documenting a real life on film: home, the cats, Jame
 - "Different one" gives one swap per day, within the same part of life.
 - "I shot the prompt" logs the day. "Shot something else" logs any other photos (a show, a trip, anything) with an optional note, and those count too. Your log is saved on the device.
 - The calendar shows every month you've logged. Tap a day to see what you shot, remove something, or add photos you forgot to log.
+- Every part of life has its own color. Calendar days are striped with whatever you shot, and each month shows a breakdown of what you shot most.
+- In the first week of a new month, a tap-through recap of last month opens once. Any month's recap can be replayed from the calendar.
 - No notifications. Open the app and tap.
 
 ## Editing prompts

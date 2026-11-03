@@ -20,9 +20,15 @@
   --frame: #1A1F1D; --frame-ink: #EEF0EA;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* one color per part of life, all readable with dark ink on top */
+  --c-home: #E08A3A; --c-cats: #D4B13C; --c-friends: #E07C9C; --c-work: #7F9EC2; --c-me: #B990D0;
+  --c-nature: #6FAE7C; --c-james: #DE6A52; --c-shows: #4FB0B0; --c-around: #A7926B; --c-other: #A3ABA6;
+  --cell-ink: #1A1F1D;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #121514; --ink: #E6E9E3; --muted: #9AA39C; --line: #2D3431; --amber: #EE9A45; --frame: #242A28; color-scheme: dark; }
+  :root { --bg: #121514; --ink: #E6E9E3; --muted: #9AA39C; --line: #2D3431; --amber: #EE9A45; --frame: #242A28; color-scheme: dark;
+    --c-home: #EE9A4D; --c-cats: #E2C155; --c-friends: #EC8FAC; --c-work: #93B0D2; --c-me: #C7A2DC;
+    --c-nature: #82C08F; --c-james: #EA7D65; --c-shows: #62C2C2; --c-around: #BBA67F; --c-other: #B3BAB5; }
 }
 * { box-sizing: border-box; }
 html { min-height: 100%; }
@@ -78,6 +84,7 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .today li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
 .today li:last-child { border-bottom: 1px solid var(--line); }
 .today .what { min-width: 0; overflow-wrap: anywhere; }
+.today .what small .sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
 .today .what small { display: block; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cal { display: flex; flex-direction: column; gap: 10px; padding-top: 18px; border-top: 1.5px solid var(--line); }
 .cal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -92,7 +99,7 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
   display: flex; align-items: flex-start; justify-content: flex-start; font-variant-numeric: tabular-nums;
 }
 .cell.blank { border-color: transparent; }
-.cell.shot { background: var(--amber); border-color: var(--amber); color: var(--on-amber); }
+.cell.shot { border-color: transparent; color: var(--cell-ink); }
 .cell.today { outline: 2px solid var(--ink); outline-offset: 1px; }
 .cell.sel { box-shadow: inset 0 0 0 2px var(--ink); }
 .cell:disabled { opacity: 0.35; }
@@ -103,6 +110,55 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
 .day-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .day-head h3 { margin: 0; font-size: 1.05rem; }
 .day .sheet { border: 0; padding: 0; }
+.chip .sw { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: 0; }
+.chip[aria-pressed="true"] .sw { box-shadow: 0 0 0 1.5px var(--on-amber); }
+.breakdown { display: flex; flex-direction: column; gap: 7px; margin: 4px 0 0; padding: 0; list-style: none; }
+.breakdown:empty { display: none; }
+.breakdown li { display: grid; grid-template-columns: 7.5em 1fr 2em; align-items: center; gap: 10px; font-size: 0.9rem; }
+.breakdown .bar { height: 10px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.breakdown .bar i { display: block; height: 100%; border-radius: 3px; }
+.breakdown .n { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.break-label { margin: 6px 0 0; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.break-label[hidden] { display: none; }
+#recapBtn[hidden] { display: none; }
+
+/* recap: full-screen tap-through story */
+.recap {
+  position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+  background: var(--slide-bg, #1A1F1D); color: var(--slide-fg, #EEF0EA);
+  padding: max(14px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  transition: background-color 0.35s;
+}
+.recap[hidden] { display: none; }
+.recap-top { display: flex; align-items: center; gap: 12px; position: relative; z-index: 3; }
+.recap-bars { flex: 1; display: flex; gap: 4px; }
+.recap-bars span { flex: 1; height: 3px; border-radius: 2px; background: currentColor; opacity: 0.25; }
+.recap-bars span.on { opacity: 0.9; }
+.recap .icon { border-color: currentColor; color: inherit; }
+.recap-slide { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; max-width: 520px; width: 100%; margin: 0 auto; position: relative; z-index: 1; }
+.recap-kicker { margin: 0; font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.8; }
+.recap-big { margin: 0; font-size: clamp(5rem, 30vw, 9rem); font-weight: 800; line-height: 0.9; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.recap-h { margin: 0; font-size: clamp(2.1rem, 10vw, 3.2rem); font-weight: 800; line-height: 1.02; letter-spacing: -0.03em; text-wrap: balance; }
+.recap-p { margin: 0; font-size: 1.15rem; line-height: 1.4; max-width: 30ch; opacity: 0.92; text-wrap: pretty; }
+.recap-rows { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.recap-rows li { display: grid; grid-template-columns: 7.5em 1fr 2em; gap: 10px; align-items: center; font-weight: 600; }
+.recap-rows .bar { height: 16px; border-radius: 4px; background: rgba(127,127,127,0.25); overflow: hidden; }
+.recap-rows .bar i { display: block; height: 100%; border-radius: 4px; }
+.recap-rows .n { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.recap-notes { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.recap-notes li { font-size: 1.15rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.recap-notes small { display: block; font-family: var(--mono); font-size: 0.7rem; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
+.recap-tap { position: absolute; inset: 0; display: flex; z-index: 2; }
+.recap-tap button { border: 0; border-radius: 0; background: transparent; min-height: 0; padding: 0; }
+.recap-tap button:focus-visible { outline: none; }
+.recap-tap #recapBack { flex: 0 0 33%; }
+.recap-tap #recapNext { flex: 1; }
+.recap-done { position: relative; z-index: 3; align-self: flex-start; background: var(--slide-fg, #EEF0EA); color: var(--slide-bg, #1A1F1D); border-color: var(--slide-fg, #EEF0EA); }
+.recap-hint { margin: 0; font-size: 0.85rem; opacity: 0.7; }
+@media (prefers-reduced-motion: no-preference) {
+  .recap-slide.enter { animation: rise 0.45s cubic-bezier(.2,.7,.2,1); }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+}
 .today button { min-height: 40px; padding: 6px 12px; font-size: 0.85rem; font-weight: 500; border-color: var(--line); color: var(--muted); flex: none; }
 </style>
 </head>
@@ -152,6 +208,9 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
     <div class="dow" aria-hidden="true"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
     <div class="grid" id="calGrid"></div>
     <p class="stats" id="calStats"></p>
+    <p class="break-label" id="breakLabel" hidden>What you shot</p>
+    <ul class="breakdown" id="calBreak"></ul>
+    <div class="actions"><button id="recapBtn" type="button" hidden>See recap</button></div>
     <div class="day" id="dayPanel" hidden>
       <div class="day-head">
         <h3 id="dayTitle"></h3>
@@ -162,6 +221,18 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
       <div class="actions"><button id="dayAdd" type="button">Add photos for this day</button></div>
     </div>
   </section>
+</div>
+
+<div class="recap" id="recap" hidden role="dialog" aria-modal="true" aria-label="Monthly recap">
+  <div class="recap-top">
+    <div class="recap-bars" id="recapBars" aria-hidden="true"></div>
+    <button class="icon" id="recapClose" type="button" aria-label="Close recap">&#215;</button>
+  </div>
+  <div class="recap-tap">
+    <button id="recapBack" type="button" aria-label="Previous slide"></button>
+    <button id="recapNext" type="button" aria-label="Next slide"></button>
+  </div>
+  <div class="recap-slide" id="recapSlide" aria-live="polite"></div>
 </div>
 
 <script>
@@ -371,6 +442,55 @@ function longDate(k) { var d = parseKey(k); return DAY_NAMES[d.getDay()] + ", " 
 function defaultTitle(k) { var d = parseKey(k); var c = category(d); return BANK[c][promptIndex(d, c)][0]; }
 function itemCount(k) { var e = log[k]; if (!e) return 0; return (e.prompt ? 1 : 0) + (e.extras ? e.extras.length : 0); }
 
+/* Colors and categories. "Shows & screens" was the old name for Shows. */
+var CAT_VAR = { "Home": "--c-home", "Cats": "--c-cats", "Friends": "--c-friends", "Work": "--c-work", "Me": "--c-me",
+  "Nature": "--c-nature", "James": "--c-james", "Shows": "--c-shows", "Around here": "--c-around", "Other": "--c-other" };
+function normCat(c) { return c === "Shows & screens" ? "Shows" : (CAT_VAR[c] ? c : "Other"); }
+function color(c) { return "var(" + CAT_VAR[normCat(c)] + ")"; }
+function swatch(c) { var i = document.createElement("span"); i.className = "sw"; i.style.background = color(c); return i; }
+/* Every category logged on a day, one entry per thing logged. */
+function catsOf(k) {
+  var e = log[k], out = [];
+  if (!e) return out;
+  if (e.prompt) out.push(normCat(e.cat || (k === tk ? pick.cat : category(parseKey(k)))));
+  (e.extras || []).forEach(function (x) { out.push(normCat(x.cat)); });
+  return out;
+}
+/* Hard-edged stripes, one per distinct category, most-logged first. */
+function stripes(cats) {
+  var tally = {};
+  cats.forEach(function (c) { tally[c] = (tally[c] || 0) + 1; });
+  var uniq = Object.keys(tally).sort(function (a, b) { return tally[b] - tally[a] || CHIPS.indexOf(a) - CHIPS.indexOf(b); });
+  if (uniq.length === 1) return color(uniq[0]);
+  var w = 100 / uniq.length, parts = [];
+  uniq.forEach(function (c, i) { parts.push(color(c) + " " + (i * w) + "% " + ((i + 1) * w) + "%"); });
+  return "linear-gradient(90deg, " + parts.join(", ") + ")";
+}
+
+/* Everything the calendar summary and the recap need for one month. */
+function monthStats(y, m) {
+  var isCurrent = y === today.getFullYear() && m === today.getMonth();
+  var days = new Date(y, m + 1, 0).getDate();
+  var st = { y: y, m: m, isCurrent: isCurrent, days: days, span: isCurrent ? today.getDate() : days,
+    shotDays: 0, items: 0, counts: {}, best: 0, bestStart: 0, weekdays: [0,0,0,0,0,0,0], notes: [] };
+  var cur = 0, curStart = 0;
+  for (var d = 1; d <= days; d++) {
+    var k = y + "-" + pad(m + 1) + "-" + pad(d);
+    var cats = catsOf(k);
+    if (cats.length) {
+      st.shotDays++; st.items += cats.length;
+      st.weekdays[new Date(y, m, d).getDay()]++;
+      cats.forEach(function (c) { st.counts[c] = (st.counts[c] || 0) + 1; });
+      if (!cur) curStart = d;
+      cur++;
+      if (cur > st.best) { st.best = cur; st.bestStart = curStart; }
+      (log[k].extras || []).forEach(function (x) { if (x.note) st.notes.push({ k: k, cat: normCat(x.cat), note: x.note }); });
+    } else cur = 0;
+  }
+  st.ranked = Object.keys(st.counts).sort(function (a, b) { return st.counts[b] - st.counts[a] || CHIPS.indexOf(a) - CHIPS.indexOf(b); });
+  return st;
+}
+
 function renderChips() {
   var box = $("chips");
   box.textContent = "";
@@ -378,7 +498,8 @@ function renderChips() {
     var b = document.createElement("button");
     b.type = "button";
     b.className = "chip";
-    b.textContent = c;
+    b.appendChild(swatch(c));
+    b.appendChild(document.createTextNode(c));
     b.setAttribute("aria-pressed", String(c === chosen));
     b.addEventListener("click", function () { chosen = c; renderChips(); });
     box.appendChild(b);
@@ -413,12 +534,13 @@ function buildRows(listEl, k) {
   listEl.textContent = "";
   var e = log[k];
   if (!e) return 0;
-  function row(label, detail, onRemove) {
+  function row(label, detail, onRemove, cat) {
     var li = document.createElement("li");
     var w = document.createElement("div");
     w.className = "what";
     var sm = document.createElement("small");
-    sm.textContent = label;
+    sm.appendChild(swatch(cat));
+    sm.appendChild(document.createTextNode(label));
     var tx = document.createElement("span");
     tx.textContent = detail;
     w.appendChild(sm); w.appendChild(tx);
@@ -432,10 +554,11 @@ function buildRows(listEl, k) {
   }
   if (e.prompt) {
     var title = e.title || (k === tk ? BANK[pick.cat][pick.idx][0] : defaultTitle(k));
-    row("Prompt", title, function () { var x = entry(k); x.prompt = false; delete x.title; tidy(k); save(); render(); });
+    var pcat = normCat(e.cat || (k === tk ? pick.cat : category(parseKey(k))));
+    row("Prompt \u00B7 " + pcat, title, function () { var x = entry(k); x.prompt = false; delete x.title; delete x.cat; tidy(k); save(); render(); }, pcat);
   }
   (e.extras || []).forEach(function (x, i) {
-    row(x.cat, x.note || "Photos taken", function () { entry(k).extras.splice(i, 1); tidy(k); save(); render(); });
+    row(normCat(x.cat), x.note || "Photos taken", function () { entry(k).extras.splice(i, 1); tidy(k); save(); render(); }, x.cat);
   });
   return itemCount(k);
 }
@@ -450,19 +573,19 @@ function renderCal() {
   var first = new Date(y, m, 1).getDay();
   var days = new Date(y, m + 1, 0).getDate();
   for (var b = 0; b < first; b++) { var s = document.createElement("span"); s.className = "cell blank"; grid.appendChild(s); }
-  var shot = 0, best = 0, cur = 0;
   for (var d = 1; d <= days; d++) {
     var k = y + "-" + pad(m + 1) + "-" + pad(d);
-    var n = itemCount(k);
+    var cats = catsOf(k);
+    var n = cats.length;
     var future = k > tk;
-    if (n) { shot++; cur++; if (cur > best) best = cur; } else cur = 0;
     var c = document.createElement("button");
     c.type = "button";
     c.className = "cell" + (n ? " shot" : "") + (k === tk ? " today" : "") + (k === selDay ? " sel" : "");
     c.disabled = future;
     c.textContent = d;
     c.dataset.key = k;
-    c.setAttribute("aria-label", MONTH_NAMES[m] + " " + d + (n ? ", " + n + (n === 1 ? " thing" : " things") + " logged" : future ? "" : ", nothing logged"));
+    if (n) c.style.background = stripes(cats);
+    c.setAttribute("aria-label", MONTH_NAMES[m] + " " + d + (n ? ", " + cats.join(", ") : future ? "" : ", nothing logged"));
     if (n) {
       var dots = document.createElement("span");
       dots.className = "dots";
@@ -471,10 +594,30 @@ function renderCal() {
     }
     grid.appendChild(c);
   }
-  var span = isCurrent ? today.getDate() : days;
-  var bits = [shot + " of " + span + " days" + (isCurrent ? " so far" : "")];
-  if (best > 1) bits.push("longest run " + best);
-  $("calStats").textContent = shot ? bits.join(" · ") : (isCurrent ? "No frames logged yet this month." : "No frames logged this month.");
+  var st = monthStats(y, m);
+  var bits = [st.shotDays + " of " + st.span + " days" + (isCurrent ? " so far" : "")];
+  if (st.best > 1) bits.push("longest run " + st.best);
+  $("calStats").textContent = st.shotDays ? bits.join(" \u00B7 ") : (isCurrent ? "No frames logged yet this month." : "No frames logged this month.");
+
+  /* What you shot most this month, as colored bars. */
+  var list = $("calBreak");
+  list.textContent = "";
+  var max = st.ranked.length ? st.counts[st.ranked[0]] : 0;
+  st.ranked.forEach(function (c) {
+    var li = document.createElement("li");
+    var nm = document.createElement("span"); nm.textContent = c;
+    var bar = document.createElement("span"); bar.className = "bar";
+    var fill = document.createElement("i"); fill.style.width = (st.counts[c] / max * 100) + "%"; fill.style.background = color(c);
+    bar.appendChild(fill);
+    var num = document.createElement("span"); num.className = "n"; num.textContent = st.counts[c];
+    li.appendChild(nm); li.appendChild(bar); li.appendChild(num);
+    li.setAttribute("aria-label", c + ": " + st.counts[c]);
+    list.appendChild(li);
+  });
+  $("breakLabel").hidden = !st.ranked.length;
+  var rb = $("recapBtn");
+  rb.hidden = !st.shotDays;
+  rb.textContent = isCurrent ? MONTH_NAMES[m] + " so far" : "See your " + MONTH_NAMES[m] + " recap";
   renderDay();
 }
 
@@ -518,7 +661,7 @@ function render() {
 $("shot").addEventListener("click", function () {
   var e = entry(tk);
   e.prompt = !e.prompt;
-  if (e.prompt) e.title = BANK[pick.cat][pick.idx][0]; else delete e.title;
+  if (e.prompt) { e.title = BANK[pick.cat][pick.idx][0]; e.cat = pick.cat; } else { delete e.title; delete e.cat; }
   tidy(tk);
   save();
   render();
@@ -569,14 +712,162 @@ $("calNext").addEventListener("click", function () {
 $("dayClose").addEventListener("click", function () { selDay = null; if (sheetInPanel) openSheet(false); renderCal(); });
 $("dayAdd").addEventListener("click", function () { if (selDay) openSheet(true, true); });
 
+/* ---------- monthly recap ---------- */
+var SEEN_KEY = "dailyframe.recapSeen";
+var slides = [], slideAt = 0;
+
+function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
+
+function buildSlides(st) {
+  var M = MONTH_NAMES[st.m], out = [];
+  var dark = { bg: "#1A1F1D", fg: "#EEF0EA" };
+  var top = st.ranked[0];
+  out.push({ bg: dark.bg, fg: dark.fg, build: function (box) {
+    box.appendChild(el("p", "recap-kicker", st.isCurrent ? "So far" : "Your month on film"));
+    box.appendChild(el("h2", "recap-h", M + (st.isCurrent ? ", so far" : ", developed")));
+    box.appendChild(el("p", "recap-p", "A look back at what you pointed your camera at."));
+    box.appendChild(el("p", "recap-hint", "Tap to keep going"));
+  } });
+  out.push({ bg: "var(--amber)", fg: "#1A1308", build: function (box) {
+    box.appendChild(el("p", "recap-kicker", "Days you shot"));
+    box.appendChild(el("p", "recap-big", String(st.shotDays)));
+    var pct = Math.round(st.shotDays / st.span * 100);
+    box.appendChild(el("p", "recap-p", "out of " + st.span + " days" + (st.isCurrent ? " so far" : "") + ". That's " + pct + "% of " + M + " on the record."));
+  } });
+  if (top) out.push({ bg: color(top), fg: "#1A1F1D", build: function (box) {
+    box.appendChild(el("p", "recap-kicker", "Most photographed"));
+    box.appendChild(el("h2", "recap-h", top));
+    var line = st.counts[top] + (st.counts[top] === 1 ? " time" : " times") + ". " + ({
+      "Home": "Home was the main character.", "Cats": "The cats know they're famous.", "Friends": "Your people showed up.",
+      "Work": "The library got its close-up.", "Me": "You remembered yourself.", "Nature": "You went outside and looked.",
+      "James": "James was in the frame a lot.", "Shows": "Ears ringing, shutter clicking.", "Around here": "Westminster and Denver, on file.",
+      "Other": "The uncategorizable stuff, documented."
+    }[top] || "");
+    box.appendChild(el("p", "recap-p", line));
+  } });
+  if (st.ranked.length > 1) out.push({ bg: dark.bg, fg: dark.fg, build: function (box) {
+    box.appendChild(el("p", "recap-kicker", "The whole roll"));
+    box.appendChild(el("h2", "recap-h", st.items + " things logged"));
+    var ul = el("ul", "recap-rows"), max = st.counts[st.ranked[0]];
+    st.ranked.forEach(function (c) {
+      var li = el("li");
+      li.appendChild(el("span", null, c));
+      var bar = el("span", "bar"), fill = el("i");
+      fill.style.width = (st.counts[c] / max * 100) + "%"; fill.style.background = color(c);
+      bar.appendChild(fill); li.appendChild(bar);
+      li.appendChild(el("span", "n", String(st.counts[c])));
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+  } });
+  if (st.best > 1) out.push({ bg: "var(--c-nature)", fg: "#1A1F1D", build: function (box) {
+    box.appendChild(el("p", "recap-kicker", "Longest run"));
+    box.appendChild(el("p", "recap-big", String(st.best)));
+    var end = st.bestStart + st.best - 1;
+    box.appendChild(el("p", "recap-p", "days in a row, " + M.slice(0, 3) + " " + st.bestStart + " to " + end + "."));
+  } });
+  var wdMax = Math.max.apply(null, st.weekdays);
+  if (st.shotDays >= 4 && wdMax >= 2) {
+    var wd = st.weekdays.indexOf(wdMax);
+    out.push({ bg: "var(--c-me)", fg: "#1A1F1D", build: function (box) {
+      box.appendChild(el("p", "recap-kicker", "Your shooting day"));
+      box.appendChild(el("h2", "recap-h", DAY_NAMES[wd] + "s"));
+      box.appendChild(el("p", "recap-p", "You shot on " + wdMax + " " + DAY_NAMES[wd] + "s this month, more than any other day."));
+    } });
+  }
+  var missing = ORDER.filter(function (c) { return !st.counts[c]; });
+  var least = missing.length ? null : st.ranked[st.ranked.length - 1];
+  if (missing.length || (least && least !== top)) out.push({ bg: dark.bg, fg: dark.fg, build: function (box) {
+    box.appendChild(el("p", "recap-kicker", "Less of"));
+    if (missing.length) {
+      box.appendChild(el("h2", "recap-h", missing.slice(0, 3).join(", ")));
+      box.appendChild(el("p", "recap-p", "didn't make it onto the roll" + (st.isCurrent ? " yet." : " this month.") + " No pressure, just something to notice."));
+    } else {
+      box.appendChild(el("h2", "recap-h", least));
+      box.appendChild(el("p", "recap-p", "only " + st.counts[least] + (st.counts[least] === 1 ? " time" : " times") + ". Maybe a little more of it next month."));
+    }
+  } });
+  if (st.notes.length) out.push({ bg: "var(--c-friends)", fg: "#1A1F1D", build: function (box) {
+    box.appendChild(el("p", "recap-kicker", "Moments you named"));
+    var ul = el("ul", "recap-notes");
+    st.notes.slice(-6).reverse().forEach(function (n) {
+      var li = el("li");
+      li.appendChild(el("small", null, shortDate(n.k) + " \u00B7 " + n.cat));
+      li.appendChild(document.createTextNode(n.note));
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+  } });
+  out.push({ bg: dark.bg, fg: dark.fg, build: function (box) {
+    box.appendChild(el("p", "recap-kicker", "That's a wrap"));
+    var left = st.span < st.days ? st.days - st.span : 0;
+    box.appendChild(el("h2", "recap-h", st.isCurrent ? left + " days of " + M + " left." : MONTH_NAMES[(st.m + 1) % 12] + " starts with one frame."));
+    box.appendChild(el("p", "recap-p", "Not about the best photo. Just about taking one."));
+    var done = el("button", "recap-done", "Done");
+    done.type = "button";
+    done.addEventListener("click", closeRecap);
+    box.appendChild(done);
+  } });
+  return out;
+}
+
+function showSlide(i) {
+  slideAt = Math.max(0, Math.min(slides.length - 1, i));
+  var r = $("recap"), sl = slides[slideAt], box = $("recapSlide");
+  r.style.setProperty("--slide-bg", sl.bg);
+  r.style.setProperty("--slide-fg", sl.fg);
+  box.textContent = "";
+  box.classList.remove("enter"); void box.offsetWidth; box.classList.add("enter");
+  sl.build(box);
+  var bars = $("recapBars");
+  bars.textContent = "";
+  slides.forEach(function (_, j) { var b = document.createElement("span"); if (j <= slideAt) b.className = "on"; bars.appendChild(b); });
+}
+function openRecap(y, m) {
+  slides = buildSlides(monthStats(y, m));
+  $("recap").hidden = false;
+  document.body.style.overflow = "hidden";
+  showSlide(0);
+  $("recapNext").focus({ preventScroll: true });
+}
+function closeRecap() {
+  $("recap").hidden = true;
+  document.body.style.overflow = "";
+  $("recapBtn").focus({ preventScroll: true });
+}
+$("recapNext").addEventListener("click", function () { if (slideAt < slides.length - 1) showSlide(slideAt + 1); else closeRecap(); });
+$("recapBack").addEventListener("click", function () { showSlide(slideAt - 1); });
+$("recapClose").addEventListener("click", closeRecap);
+$("recapBtn").addEventListener("click", function () { openRecap(calView.y, calView.m); });
+document.addEventListener("keydown", function (ev) {
+  if ($("recap").hidden) return;
+  if (ev.key === "Escape") closeRecap();
+  else if (ev.key === "ArrowRight" || ev.key === " ") { ev.preventDefault(); $("recapNext").click(); }
+  else if (ev.key === "ArrowLeft") showSlide(slideAt - 1);
+});
+
+/* In the first week of a month, open last month's recap once, automatically. */
+function maybeAutoRecap() {
+  if (today.getDate() > 7) return;
+  var y = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+  var m = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+  var id = y + "-" + pad(m + 1);
+  var seen = get(SEEN_KEY, {});
+  if (seen[id] || !monthStats(y, m).shotDays) return;
+  seen[id] = 1;
+  put(SEEN_KEY, seen);
+  openRecap(y, m);
+}
+
 /* If the app stays open past midnight, pick up the new day on return. */
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState !== "visible") return;
   var n = new Date();
-  if (keyOf(n) !== tk) { today = n; tk = keyOf(n); pick = todaysPick(); calView = { y: n.getFullYear(), m: n.getMonth() }; selDay = null; render(); }
+  if (keyOf(n) !== tk) { today = n; tk = keyOf(n); pick = todaysPick(); calView = { y: n.getFullYear(), m: n.getMonth() }; selDay = null; render(); maybeAutoRecap(); }
 });
 
 render();
+maybeAutoRecap();
 if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function () {}); }
 </script>
 </body>
