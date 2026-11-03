@@ -144,6 +144,12 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
 }
 .roll-form input:focus-visible, .roll-form select:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
 .past { list-style: none; margin: 0; padding: 0; }
+.rolls { display: flex; flex-direction: column; gap: 12px; }
+.roll-card { display: flex; flex-direction: column; gap: 10px; border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.roll-card .actions button { min-height: 40px; padding: 8px 16px; font-size: 0.9rem; }
+.campick { display: flex; flex-direction: column; gap: 12px; border: 1.5px solid var(--amber); border-radius: 10px; padding: 14px 16px; }
+.campick[hidden], .sheet-cams[hidden] { display: none; }
+.sheet-cams { display: flex; flex-direction: column; gap: 10px; }
 .past li { padding: 9px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .past li span:last-child { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
 .past-label { margin: 4px 0 0; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
@@ -210,11 +216,21 @@ button.icon { width: 44px; height: 44px; min-height: 44px; padding: 0; border-co
     <button id="extra" type="button" aria-expanded="false" aria-controls="sheet">Shot something else</button>
   </div>
 
+  <div class="campick" id="camPick" hidden>
+    <p class="sheet-q">Which camera?</p>
+    <div class="chips" id="camPickChips" role="group" aria-label="Camera"></div>
+    <div class="actions"><button type="button" id="camPickCancel">Cancel</button></div>
+  </div>
+
   <form class="sheet" id="sheet" hidden>
     <p class="sheet-q" id="sheetQ">What was it?</p>
     <div class="chips" id="chips" role="group" aria-label="Part of life"></div>
     <label class="sr" for="extraNote">Note (optional)</label>
     <input id="extraNote" type="text" maxlength="120" placeholder="Optional: who, where, what" autocomplete="off">
+    <div class="sheet-cams" id="sheetCams" hidden>
+      <p class="sheet-q">Which camera?</p>
+      <div class="chips" id="sheetCamChips" role="group" aria-label="Camera"></div>
+    </div>
     <div class="actions">
       <button class="primary" type="submit">Log it</button>
       <button type="button" id="sheetCancel">Cancel</button>
@@ -598,6 +614,9 @@ function openSheet(open, inPanel) {
   $("sheetQ").textContent = inPanel && sheetDay !== tk ? "What did you shoot on " + shortDate(sheetDay) + "?" : "What was it?";
   chosen = chosen || (sheetDay === tk ? pick.cat : "Other");
   renderChips();
+  $("camPick").hidden = true;
+  sheetRoll = null;
+  renderSheetCams();
   sheet.hidden = false;
   $("extraNote").focus();
 }
@@ -757,78 +776,147 @@ function renderOTD() {
 
 /* ---------- what's loaded: camera, film, frame count ---------- */
 var ROLL_KEY = "dailyframe.rolls";
-var rolls = get(ROLL_KEY, { current: null, done: [] });
-if (!rolls.done) rolls.done = [];
-var finishArmed = false;
+var rolls = get(ROLL_KEY, { loaded: [], done: [] });
+/* Older saves had one "current" roll; several cameras can be loaded now. */
+function normRolls(r) {
+  if (!r || typeof r !== "object") r = {};
+  if (!Array.isArray(r.loaded)) r.loaded = [];
+  if (r.current && r.current.id && !r.loaded.some(function (x) { return x.id === r.current.id; })) r.loaded.push(r.current);
+  delete r.current;
+  if (!Array.isArray(r.done)) r.done = [];
+  return r;
+}
+rolls = normRolls(rolls);
+var finishArmed = null;   /* id of the roll waiting for a second "finish" tap */
+var addingRoll = false;   /* the load form is open while other rolls are loaded */
+var sheetRoll = null;     /* camera picked in the "something else" form */
 function saveRolls() { put(ROLL_KEY, rolls); }
 function findRoll(id) {
   if (!id) return null;
-  if (rolls.current && rolls.current.id === id) return rolls.current;
-  for (var i = 0; i < rolls.done.length; i++) if (rolls.done[i].id === id) return rolls.done[i];
+  var all = rolls.loaded.concat(rolls.done);
+  for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
   return null;
 }
-function rollTag(id) { var r = findRoll(id); return r ? " \u00B7 " + r.film : ""; }
+function loadedRoll(id) { for (var i = 0; i < rolls.loaded.length; i++) if (rolls.loaded[i].id === id) return rolls.loaded[i]; return null; }
+/* With several cameras loaded, label by camera; with one, the film is the useful bit. */
+function rollTag(id) { var r = findRoll(id); if (!r) return ""; return " \u00B7 " + (rolls.loaded.length > 1 || rolls.done.length ? r.camera + ", " + r.film : r.film); }
 function bumpFrames(n, id) {
-  if (!rolls.current || !id || rolls.current.id !== id) return;
-  rolls.current.frames = Math.max(0, (rolls.current.frames || 0) + n);
+  var r = loadedRoll(id);
+  if (!r) return;
+  r.frames = Math.max(0, (r.frames || 0) + n);
+  if (n > 0) rolls.last = id;
   saveRolls();
 }
+function rollsFor(day) { return rolls.loaded.filter(function (r) { return day >= r.start; }); }
+function defaultRoll(list) {
+  for (var i = 0; i < list.length; i++) if (list[i].id === rolls.last) return list[i].id;
+  return list.length ? list[0].id : "";
+}
+/* A row of camera chips, one per loaded roll. */
+function camChips(box, list, selected, onPick) {
+  box.textContent = "";
+  list.forEach(function (r) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = r.camera + " \u00B7 " + r.film;
+    b.setAttribute("aria-pressed", String(r.id === selected));
+    b.addEventListener("click", function () { onPick(r.id); });
+    box.appendChild(b);
+  });
+}
+function renderSheetCams() {
+  var list = rollsFor(sheetDay || tk);
+  var wrap = $("sheetCams");
+  wrap.hidden = list.length < 2;
+  if (list.length < 2) { sheetRoll = list.length ? list[0].id : ""; return; }
+  if (sheetRoll === null || (sheetRoll && !list.some(function (r) { return r.id === sheetRoll; }))) sheetRoll = defaultRoll(list);
+  camChips($("sheetCamChips"), list, sheetRoll, function (id) { sheetRoll = id; renderSheetCams(); });
+}
+function logPrompt(rollId) {
+  var e = entry(tk);
+  e.prompt = true;
+  e.title = BANK[pick.cat][pick.idx][0]; e.cat = pick.cat;
+  if (rollId) { e.roll = rollId; bumpFrames(1, rollId); } else delete e.roll;
+  $("camPick").hidden = true;
+  save();
+  render();
+}
+
 function renderRoll() {
   var box = $("rollView");
   box.textContent = "";
-  var r = rolls.current;
-  if (r) {
-    box.appendChild(el("p", "roll-name", r.camera + " \u00B7 " + r.film));
+  var list = el("div", "rolls");
+  rolls.loaded.forEach(function (r) {
+    var card = el("div", "roll-card");
+    card.appendChild(el("p", "roll-name", r.camera + " \u00B7 " + r.film));
     var row = el("div", "roll-count");
-    var minus = el("button", "icon", "\u2212"); minus.type = "button"; minus.setAttribute("aria-label", "One frame fewer");
+    var minus = el("button", "icon", "\u2212"); minus.type = "button"; minus.setAttribute("aria-label", "One frame fewer on " + r.camera);
     var num = el("div", "roll-num"); num.appendChild(document.createTextNode(String(r.frames || 0)));
     num.appendChild(el("small", null, " / " + r.exp));
-    var plus = el("button", "icon", "+"); plus.type = "button"; plus.setAttribute("aria-label", "One frame more");
+    var plus = el("button", "icon", "+"); plus.type = "button"; plus.setAttribute("aria-label", "One frame more on " + r.camera);
     minus.addEventListener("click", function () { r.frames = Math.max(0, (r.frames || 0) - 1); saveRolls(); renderRoll(); });
     plus.addEventListener("click", function () { r.frames = (r.frames || 0) + 1; saveRolls(); renderRoll(); });
     row.appendChild(minus); row.appendChild(num); row.appendChild(plus);
-    box.appendChild(row);
+    card.appendChild(row);
     var bar = el("div", "roll-bar"), fill = el("i");
     fill.style.width = Math.min(100, (r.frames || 0) / r.exp * 100) + "%";
-    bar.appendChild(fill); box.appendChild(bar);
+    bar.appendChild(fill); card.appendChild(bar);
     var left = r.exp - (r.frames || 0);
-    box.appendChild(el("p", "stats", left > 0
-      ? "Loaded " + shortDate(r.start) + ". About " + left + " frames left. Each thing you log counts as a frame; fix the count with + and \u2212."
-      : "Roll's full. Time to rewind and finish it."));
+    card.appendChild(el("p", "stats", left > 0 ? "Loaded " + shortDate(r.start) + ". About " + left + " frames left." : "Roll's full. Time to rewind and finish it."));
     var acts = el("div", "actions");
-    var fin = el("button", null, finishArmed ? "Tap again to finish the roll" : "Finish roll"); fin.type = "button";
+    var armed = finishArmed === r.id;
+    var fin = el("button", null, armed ? "Tap again to finish" : "Finish roll"); fin.type = "button";
     fin.addEventListener("click", function () {
-      if (!finishArmed) { finishArmed = true; renderRoll(); setTimeout(function () { finishArmed = false; renderRoll(); }, 4000); return; }
-      finishArmed = false;
+      if (!armed) {
+        finishArmed = r.id; renderRoll();
+        setTimeout(function () { if (finishArmed === r.id) { finishArmed = null; renderRoll(); } }, 4000);
+        return;
+      }
+      finishArmed = null;
       r.end = tk;
+      rolls.loaded = rolls.loaded.filter(function (x) { return x.id !== r.id; });
       rolls.done.unshift(r);
-      rolls.current = null;
-      saveRolls(); renderRoll();
+      if (rolls.last === r.id) delete rolls.last;
+      saveRolls(); render();
     });
-    acts.appendChild(fin); box.appendChild(acts);
-  } else {
-    box.appendChild(el("p", "stats", "Nothing loaded. Load a roll to keep count of frames and see which roll each day landed on."));
+    acts.appendChild(fin); card.appendChild(acts);
+    list.appendChild(card);
+  });
+  if (rolls.loaded.length) box.appendChild(list);
+
+  if (!rolls.loaded.length || addingRoll) {
+    if (!rolls.loaded.length) box.appendChild(el("p", "stats", "Nothing loaded. Load a roll to keep count of frames and see which roll each day landed on. You can load several cameras at once."));
     var form = el("form", "roll-form");
     form.innerHTML = '<label>Camera<input id="rollCam" list="cams" maxlength="40" required placeholder="Olympus OM-2S" autocomplete="off"></label>' +
       '<label>Film<input id="rollFilm" list="films" maxlength="40" required placeholder="Kodak Portra 400" autocomplete="off"></label>' +
       '<label>Exposures<select id="rollExp"><option>36</option><option>24</option><option>12</option></select></label>' +
-      '<div class="actions"><button class="primary" type="submit">Load roll</button></div>';
+      '<div class="actions"><button class="primary" type="submit">Load roll</button>' + (rolls.loaded.length ? '<button type="button" id="rollCancel">Cancel</button>' : '') + '</div>';
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       var cam = $("rollCam").value.trim(), film = $("rollFilm").value.trim();
       if (!cam || !film) return;
-      rolls.current = { id: "r" + Date.now(), camera: cam, film: film, exp: +$("rollExp").value || 36, frames: 0, start: tk };
-      saveRolls(); renderRoll();
+      rolls.loaded.push({ id: "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), camera: cam, film: film, exp: +$("rollExp").value || 36, frames: 0, start: tk });
+      addingRoll = false;
+      saveRolls(); render();
     });
     box.appendChild(form);
+    var cancel = form.querySelector("#rollCancel");
+    if (cancel) cancel.addEventListener("click", function () { addingRoll = false; renderRoll(); });
+  } else {
+    var more = el("div", "actions");
+    var add = el("button", null, "Load another camera"); add.type = "button";
+    add.addEventListener("click", function () { addingRoll = true; renderRoll(); $("rollCam").focus(); });
+    more.appendChild(add); box.appendChild(more);
   }
+
   if (rolls.done.length) {
     box.appendChild(el("p", "past-label", "Finished rolls"));
     var ul = el("ul", "past");
-    rolls.done.slice(0, 5).forEach(function (d) {
+    rolls.done.slice(0, 6).forEach(function (d) {
       var li = el("li");
       li.appendChild(el("span", null, d.film + " \u00B7 " + d.camera));
-      li.appendChild(el("span", null, shortDate(d.start) + (d.end && d.end !== d.start ? " \u2013 " + shortDate(d.end) : "") + " \u00B7 " + (d.frames || 0) + " frames"));
+      li.appendChild(el("span", null, shortDate(d.start) + (d.end && d.end !== d.start ? " \u2013 " + shortDate(d.end) : "") + " \u00B7 " + (d.frames || 0) + ((d.frames || 0) === 1 ? " frame" : " frames")));
       ul.appendChild(li);
     });
     box.appendChild(ul);
@@ -836,16 +924,21 @@ function renderRoll() {
 }
 
 $("shot").addEventListener("click", function () {
-  var e = entry(tk);
-  e.prompt = !e.prompt;
-  if (e.prompt) {
-    e.title = BANK[pick.cat][pick.idx][0]; e.cat = pick.cat;
-    if (rolls.current) { e.roll = rolls.current.id; bumpFrames(1, e.roll); }
-  } else { bumpFrames(-1, e.roll); delete e.title; delete e.cat; delete e.roll; }
-  tidy(tk);
-  save();
-  render();
+  var e = log[tk];
+  if (e && e.prompt) {
+    bumpFrames(-1, e.roll); e.prompt = false; delete e.title; delete e.cat; delete e.roll;
+    tidy(tk); save(); render();
+    return;
+  }
+  var list = rollsFor(tk);
+  if (list.length < 2) { logPrompt(list.length ? list[0].id : ""); return; }
+  var pickBox = $("camPick");
+  if (!pickBox.hidden) { pickBox.hidden = true; return; }
+  openSheet(false);
+  camChips($("camPickChips"), list, defaultRoll(list), logPrompt);
+  pickBox.hidden = false;
 });
+$("camPickCancel").addEventListener("click", function () { $("camPick").hidden = true; });
 $("other").addEventListener("click", function () {
   var list = BANK[pick.cat];
   var next = pick.idx;
@@ -863,11 +956,12 @@ $("sheet").addEventListener("submit", function (ev) {
   ev.preventDefault();
   var note = $("extraNote").value.trim();
   var day = sheetDay || tk, item = { cat: chosen || "Other", note: note };
-  if (rolls.current && day >= rolls.current.start) { item.roll = rolls.current.id; bumpFrames(1, item.roll); }
+  if (sheetRoll && loadedRoll(sheetRoll) && day >= loadedRoll(sheetRoll).start) { item.roll = sheetRoll; bumpFrames(1, sheetRoll); }
   entry(day).extras.push(item);
   save();
   $("extraNote").value = "";
   chosen = null;
+  sheetRoll = null;
   openSheet(false);
   render();
 });
@@ -1110,10 +1204,10 @@ $("importFile").addEventListener("change", function () {
     });
     if (d.rolls && typeof d.rolls === "object") {
       var ids = {};
-      rolls.done.forEach(function (r) { ids[r.id] = 1; });
-      if (rolls.current) ids[rolls.current.id] = 1;
-      (Array.isArray(d.rolls.done) ? d.rolls.done : []).forEach(function (r) { if (r && r.id && !ids[r.id]) { rolls.done.push(r); ids[r.id] = 1; } });
-      if (!rolls.current && d.rolls.current && d.rolls.current.id && !ids[d.rolls.current.id]) rolls.current = d.rolls.current;
+      var inc = normRolls(JSON.parse(JSON.stringify(d.rolls)));
+      rolls.loaded.concat(rolls.done).forEach(function (r) { ids[r.id] = 1; });
+      inc.done.forEach(function (r) { if (r && r.id && !ids[r.id]) { rolls.done.push(r); ids[r.id] = 1; } });
+      inc.loaded.forEach(function (r) { if (r && r.id && !ids[r.id]) { rolls.loaded.push(r); ids[r.id] = 1; } });
       rolls.done.sort(function (a, b) { return String(b.end || "").localeCompare(String(a.end || "")); });
       saveRolls();
     }

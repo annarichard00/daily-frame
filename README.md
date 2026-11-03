@@ -11,7 +11,7 @@ One photo prompt a day for documenting a real life on film: home, the cats, Jame
 - In the first week of a new month, a tap-through recap of last month opens once. Any month's recap can be replayed from the calendar.
 - After 3 or more days without a frame, the app says so and swaps in one of the easiest prompts to get back in.
 - On this day: if you logged something on today's date in an earlier year, it shows up under today.
-- What's loaded: note the camera, film, and exposures. Each thing you log counts as a frame, the count can be fixed by hand, and finished rolls are kept as a list.
+- What's loaded: load as many cameras as you have film in, each with its film, exposures, and its own frame count. With one loaded, logging counts toward it automatically; with several, the app asks which camera (defaulting to the last one used). Counts can be fixed by hand, and finished rolls are kept as a list.
 - Backup: "Save backup" exports everything (log, rolls, recaps seen) as a .json file; "Restore backup" merges one back in. The log otherwise lives only on the device.
 - Year in review: the same recap for a whole year, replayable from the calendar, and opened once in the first week of January.
 - No notifications. Open the app and tap.
